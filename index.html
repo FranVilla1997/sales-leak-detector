@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SCALA — Sales Leak Detector</title>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'Venn';
+  src: url('./Venn_Trial_Bd.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
 <style>
   :root {
@@ -18,29 +26,30 @@
     --brd:#1e1e2a;--brdL:#2a2a38;--evoG:#25D366;
     --gray1:#bababa;--gray2:#d6d6d6;
     --ghl:#FF6A00;--ghlB:#FF6A0012;
+    --meta:#1877F2;--metaB:#1877F212;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:var(--bg);color:var(--txt);font-family:'Helvetica Neue','Helvetica','Arial',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
-  .fm{font-family:'Geist Mono','JetBrains Mono','SF Mono',monospace}
-  .fd{font-family:'Outfit','Helvetica Neue','Arial Black',sans-serif;font-weight:800;letter-spacing:-0.02em}
-  .btn{padding:8px 18px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;font-family:'Helvetica Neue',sans-serif;transition:all .15s;border:1px solid var(--brd);background:var(--sf2);color:var(--txt);letter-spacing:0.3px}
+  body{background:var(--bg);color:var(--txt);font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+  .fm{font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif}
+  .fd{font-family:'Venn','Inter','Helvetica Neue',sans-serif;font-weight:800;letter-spacing:-0.02em}
+  .btn{padding:8px 18px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:800;font-family:'Venn','Inter','Helvetica Neue',sans-serif;transition:all .15s;border:1px solid var(--brd);background:var(--sf2);color:var(--txt);letter-spacing:0.3px}
   .btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:not-allowed}
   .btn-p{background:var(--acc);border-color:var(--acc);color:#fff}
   .btn-g{background:transparent;color:var(--dim)}
   .btn-green{background:var(--evoG);border-color:var(--evoG);color:#fff}
   .btn-ghl{background:var(--ghl);border-color:var(--ghl);color:#fff}
   .btn-sec{background:var(--sec);border-color:var(--sec);color:#000}
-  input,select{width:100%;background:var(--sf2);border:1px solid var(--brd);border-radius:4px;padding:10px 14px;color:var(--txt);font-size:13px;font-family:'Geist Mono',monospace;outline:none}
+  input,select{width:100%;background:var(--sf2);border:1px solid var(--brd);border-radius:4px;padding:10px 14px;color:var(--txt);font-size:13px;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif;outline:none}
   input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(24,93,232,.15)}
   #ghlConfig input:focus{border-color:var(--ghl);box-shadow:0 0 0 2px rgba(255,106,0,.15)}
   .card{background:var(--sf);border:1px solid var(--brd);border-radius:8px;padding:20px}
-  .label{display:block;font-size:10px;font-weight:700;color:var(--dim);margin-bottom:6px;font-family:'Geist Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+  .label{display:block;font-size:10px;font-weight:700;color:var(--dim);margin-bottom:6px;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif;text-transform:uppercase;letter-spacing:1px}
   .topbar{padding:14px 24px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--sf);flex-wrap:wrap;gap:8px}
   .main{padding:28px 24px;max-width:960px;margin:0 auto}
   .kpi{border-radius:6px;padding:16px;text-align:center}
-  .kpi-v{font-size:26px;font-weight:800;font-family:'Outfit','Helvetica Neue',sans-serif;letter-spacing:-0.02em}
-  .kpi-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:'Geist Mono',monospace}
-  .sev{padding:2px 10px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Geist Mono',monospace;letter-spacing:0.5px}
+  .kpi-v{font-size:26px;font-weight:800;font-family:'Venn','Inter','Helvetica Neue',sans-serif;letter-spacing:-0.02em}
+  .kpi-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif}
+  .sev{padding:2px 10px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif;letter-spacing:0.5px}
   .leak{background:var(--sf);border:1px solid var(--brd);border-radius:6px;padding:16px;margin-bottom:10px}
   .bubble{max-width:80%;padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.5;word-break:break-word}
   .bubble-me{background:rgba(24,93,232,.15);border:1px solid rgba(24,93,232,.25);border-radius:8px 8px 2px 8px;margin-left:auto}
@@ -58,22 +67,23 @@
   .tabs{display:flex;gap:6px;flex-wrap:wrap}
   .error{background:var(--dangerB);border:1px solid rgba(229,62,62,.2);border-radius:6px;padding:12px 16px;margin-top:16px}
   .error span{font-size:12px;color:var(--danger)}
-  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 0;margin-bottom:10px;font-family:'Geist Mono',monospace}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 0;margin-bottom:10px;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif}
   /* SCALA gradient accent line */
   .scala-line{height:2px;background:linear-gradient(90deg,var(--acc),var(--sec));border-radius:1px}
   /* Subtle grid texture */
   .scala-bg{background-image:linear-gradient(rgba(24,93,232,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(24,93,232,.03) 1px,transparent 1px);background-size:40px 40px}
   /* Channel selector */
-  .channel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:500px;margin:0 auto 28px}
+  .channel-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:740px;margin:0 auto 28px}
   .channel-card{border:2px solid var(--brd);border-radius:10px;padding:20px 16px;cursor:pointer;transition:all .2s;text-align:center;position:relative;background:var(--sf)}
   .channel-card:hover{border-color:var(--dimL);transform:translateY(-1px)}
   .channel-card.ch-active-wa{border-color:var(--evoG);background:rgba(37,211,102,.04);box-shadow:0 0 0 1px var(--evoG)}
   .channel-card.ch-active-ghl{border-color:var(--ghl);background:rgba(255,106,0,.04);box-shadow:0 0 0 1px var(--ghl)}
+  .channel-card.ch-active-meta{border-color:var(--meta);background:rgba(24,119,242,.04);box-shadow:0 0 0 1px var(--meta)}
   .channel-card .ch-icon{font-size:32px;margin-bottom:8px}
   .channel-card .ch-label{font-size:14px;font-weight:700}
   .channel-card .ch-desc{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
   .channel-card .ch-check{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
-  .ch-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Geist Mono',monospace;letter-spacing:0.5px;margin-top:8px}
+  .ch-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Inter','Helvetica Neue','Helvetica','Arial',sans-serif;letter-spacing:0.5px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -99,7 +109,8 @@ const el = (tag, attrs={}, ...children) => {
 // ─── STATE ───
 let state = {
   step: 0, // 0=config, 1=instances, 2=extract, 3=dashboard
-  channel: localStorage.getItem('channel') || '', // 'whatsapp' or 'ghl'
+  channelStep: 0, // 0=select channel, 1=config form
+  channel: localStorage.getItem('channel') || '', // 'whatsapp' or 'ghl' or 'meta'
   evoUrl: localStorage.getItem('evoUrl') || '',
   evoKey: localStorage.getItem('evoKey') || '',
   ghlKey: localStorage.getItem('ghlKey') || '',
@@ -898,7 +909,7 @@ function render(){
   // ── LEAK DETAIL VIEW ──
   if(state.viewingLeak){
     app.innerHTML=`
-      <div class="topbar"><button class="btn btn-g" id="backLeak">← Volver</button><div><div class="fm" style="font-size:11px;font-weight:700;color:var(--acc);letter-spacing:3px">LEAK DETECTOR</div></div></div>
+      <div class="topbar"><button class="btn btn-g" id="backLeak">← Volver</button><div><div class="fd" style="font-size:11px;font-weight:800;color:var(--acc);letter-spacing:3px">LEAK DETECTOR</div></div></div>
       <div class="main"><div id="leakDetail"></div><div class="card" style="margin-top:16px" id="leakChat"><h3 style="margin-bottom:12px;font-size:13px;font-weight:700">💬 Conversación</h3></div></div>`;
     $('#backLeak').onclick=()=>{state.viewingLeak=null;render();};
     renderLeakCard($('#leakDetail'),state.viewingLeak);
@@ -919,17 +930,15 @@ function render(){
   const topLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'14px'}});
   if(state.step>0){const bb=el('button',{className:'btn btn-g',style:{padding:'4px 10px'},onClick:()=>{
     if(state.step===3){
-      // From dashboard: go to instances (WA) or extract (GHL)
-      state.step=state.channel==='ghl'?0:1;state.error=null;render();
+      state.step=state.channel==='ghl'?0:1;state.channelStep=1;state.error=null;render();
     }else if(state.step===2){
-      // From extract: go to instances (WA) or config (GHL)
-      state.step=state.channel==='ghl'?0:1;state.error=null;render();
+      state.step=state.channel==='ghl'?0:1;state.channelStep=1;state.error=null;render();
     }else{
-      state.step=Math.max(0,state.step-1);state.error=null;render();
+      state.step=Math.max(0,state.step-1);state.channelStep=1;state.error=null;render();
     }
   }});bb.textContent='←';topLeft.append(bb);}
   const info=el('div');
-  info.append(el('div',{className:'fd',style:{fontSize:'13px',fontWeight:800,color:'var(--acc)',letterSpacing:'0.1em'}},'SCALA'));
+  const logoNav=el('img',{src:'./ScalaLogo.png',alt:'Scala',style:{height:'22px',objectFit:'contain',display:'block'}});info.append(logoNav);
   const chIcon=state.channel==='ghl'?'🟠 GHL':'📱 WA';
   const sub=state.step===3?`${chIcon} ${state.instanceName} · ${state.messages.length.toLocaleString()} msgs · ${state.leaks.length} fugas`:state.step===1?(state.channel==='ghl'?'Go High Level':`${state.instances.length} instancias`):' Detección de fugas de venta';
   info.append(el('div',{className:'fm',style:{fontSize:'11px',color:'var(--dim)'}},sub));
@@ -948,7 +957,7 @@ function render(){
     dlBtn.textContent='📥 Descargar chats';
     const dlMenu=el('div',{className:'dl-menu',style:{display:'none',position:'absolute',top:'100%',right:'0',marginTop:'4px',background:'var(--sf)',border:'1px solid var(--brd)',borderRadius:'6px',padding:'4px',zIndex:'100',minWidth:'160px',boxShadow:'0 8px 24px rgba(0,0,0,.4)'}});
     [{label:'📄 CSV (Excel)',fmt:'csv'},{label:'📋 JSON (datos)',fmt:'json'},{label:'💬 TXT (legible)',fmt:'txt'}].forEach(({label,fmt})=>{
-      const item=el('button',{style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'var(--txt)',padding:'8px 12px',fontSize:'12px',cursor:'pointer',borderRadius:'4px',fontFamily:'Helvetica Neue,sans-serif'},onClick:()=>{exportChats(fmt);dlMenu.style.display='none';}});
+      const item=el('button',{style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'var(--txt)',padding:'8px 12px',fontSize:'12px',cursor:'pointer',borderRadius:'4px',fontFamily:'Inter,Helvetica Neue,sans-serif'},onClick:()=>{exportChats(fmt);dlMenu.style.display='none';}});
       item.textContent=label;
       item.onmouseover=()=>{item.style.background='var(--sf2)'};
       item.onmouseout=()=>{item.style.background='transparent'};
@@ -963,106 +972,126 @@ function render(){
 
   // ── STEP 0: CONFIG ──
   if(state.step===0){
-    main.innerHTML=`
-      <div style="text-align:center;margin-bottom:36px">
-        <h1 class="fd" style="font-size:36px;font-weight:800;margin-bottom:10px;letter-spacing:-0.02em">SCALA <span style="color:var(--acc)">LEAK DETECTOR</span></h1>
-        <div class="scala-line" style="width:60px;margin:0 auto 16px"></div>
-        <p style="color:var(--dim);font-size:14px;max-width:460px;margin:0 auto;line-height:1.7">Elegí el canal de comunicación, configurá las credenciales y analizá las conversaciones.</p>
-      </div>
 
-      <!-- Channel selector -->
-      <div class="channel-grid" id="channelGrid">
-        <div class="channel-card ${state.channel==='whatsapp'?'ch-active-wa':''}" id="chWA">
-          <div class="ch-icon">📱</div>
-          <div class="ch-label" style="color:${state.channel==='whatsapp'?'var(--evoG)':'var(--txt)'}">WhatsApp</div>
-          <div class="ch-desc">Via Evolution API</div>
-          ${state.channel==='whatsapp'?'<div class="ch-check" style="background:var(--evoG);color:#fff">✓</div>':''}
-          <div class="ch-badge" style="background:rgba(37,211,102,.08);color:var(--evoG)">EVOLUTION API</div>
+    // ── STEP 0a: CHANNEL SELECTION ──
+    if(state.channelStep===0){
+      main.innerHTML=`
+        <div style="text-align:center;margin-bottom:48px">
+          <img src="./ScalaLogo.png" alt="Scala" style="height:56px;object-fit:contain;display:block;margin:0 auto 16px">
+          <h1 class="fd" style="font-size:36px;font-weight:800;margin-bottom:10px;letter-spacing:-0.02em"><span style="color:var(--acc)">LEAK DETECTOR</span></h1>
+          <div class="scala-line" style="width:60px;margin:0 auto 16px"></div>
+          <p style="color:var(--dim);font-size:14px;max-width:460px;margin:0 auto;line-height:1.7">Seleccioná el canal de comunicación que querés analizar.</p>
         </div>
-        <div class="channel-card ${state.channel==='ghl'?'ch-active-ghl':''}" id="chGHL">
-          <div class="ch-icon">🟠</div>
-          <div class="ch-label" style="color:${state.channel==='ghl'?'var(--ghl)':'var(--txt)'}">Go High Level</div>
-          <div class="ch-desc">CRM & Conversations API</div>
-          ${state.channel==='ghl'?'<div class="ch-check" style="background:var(--ghl);color:#fff">✓</div>':''}
-          <div class="ch-badge" style="background:rgba(255,106,0,.08);color:var(--ghl)">GHL API</div>
-        </div>
-      </div>
 
-      <!-- Config form (only show when channel selected) -->
-      <div id="configForm" style="display:${state.channel?'block':'none'}">
-        <!-- WhatsApp config -->
-        <div id="waConfig" style="display:${state.channel==='whatsapp'?'block':'none'}">
-          <div class="card" style="max-width:500px;margin:0 auto">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--brd)">
-              <span style="font-size:18px">📱</span>
-              <span class="fm" style="font-size:11px;font-weight:700;color:var(--evoG);letter-spacing:1px">WHATSAPP — EVOLUTION API</span>
-            </div>
-            <div style="margin-bottom:16px"><label class="label">URL de Evolution API</label><input id="inUrl" type="text" placeholder="https://evo.tudominio.com" /></div>
-            <div style="margin-bottom:16px"><label class="label">API Key Evolution</label><input id="inKey" type="password" placeholder="Tu global API key de Evolution" /></div>
-            <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKey" type="password" placeholder="sk-ant-..." /></div>
-            <button class="btn btn-green" id="btnConnect" style="width:100%">Conectar y ver instancias →</button>
-            <div style="margin-top:14px;font-size:11px;color:var(--dim)">🔒 Se guarda en tu navegador (localStorage) para no tipear cada vez.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;max-width:860px;margin:0 auto 40px">
+          <div class="channel-card" id="chWA" style="padding:40px 24px 32px;cursor:pointer">
+            <div style="margin-bottom:20px;display:flex;justify-content:center"><img src="./WhatsappLogo.png" alt="WhatsApp" style="height:72px;object-fit:contain"></div>
+            <div class="ch-label fd" style="font-size:18px;margin-bottom:8px">WhatsApp</div>
+            <div class="ch-desc" style="font-size:12px">Via Evolution API</div>
+            <div class="ch-badge" style="background:rgba(37,211,102,.08);color:var(--evoG);margin-top:16px">EVOLUTION API</div>
+          </div>
+          <div class="channel-card" id="chGHL" style="padding:40px 24px 32px;cursor:pointer">
+            <div style="margin-bottom:20px;display:flex;justify-content:center"><img src="./GoHighLevelLogo.png" alt="Go High Level" style="height:72px;object-fit:contain"></div>
+            <div class="ch-label fd" style="font-size:18px;margin-bottom:8px">Go High Level</div>
+            <div class="ch-desc" style="font-size:12px">CRM & Conversations API</div>
+            <div class="ch-badge" style="background:rgba(255,106,0,.08);color:var(--ghl);margin-top:16px">GHL API</div>
+          </div>
+          <div class="channel-card" id="chMeta" style="padding:40px 24px 32px;cursor:pointer">
+            <div style="margin-bottom:20px;display:flex;justify-content:center"><img src="./METALogo.png" alt="Meta" style="height:72px;object-fit:contain"></div>
+            <div class="ch-label fd" style="font-size:18px;margin-bottom:8px">Importación de Meta</div>
+            <div class="ch-desc" style="font-size:12px">Facebook & Instagram Messenger</div>
+            <div class="ch-badge" style="background:rgba(24,119,242,.08);color:var(--meta);margin-top:16px">META API</div>
           </div>
         </div>
-        <!-- GHL config -->
-        <div id="ghlConfig" style="display:${state.channel==='ghl'?'block':'none'}">
-          <div class="card" style="max-width:500px;margin:0 auto">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--brd)">
-              <span style="font-size:18px">🟠</span>
-              <span class="fm" style="font-size:11px;font-weight:700;color:var(--ghl);letter-spacing:1px">GO HIGH LEVEL — API</span>
+
+        <div style="max-width:500px;margin:0 auto;text-align:center">
+          <div class="scala-line" style="width:40px;margin:0 auto 16px"></div>
+          <p style="color:var(--dim);font-size:13px;margin-bottom:12px">¿Ya tenés chats exportados de un análisis anterior?</p>
+          <label style="display:inline-flex;align-items:center;gap:8px;background:var(--sf);border:1px solid var(--brd);padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;color:var(--txt);transition:all .15s">
+            📂 Cargar chats exportados (.json, .csv, .txt)
+            <input type="file" accept=".json,.csv,.txt" id="importFile" style="display:none" />
+          </label>
+        </div>`;
+
+      const chWA=$('#chWA',main); const chGHL=$('#chGHL',main); const chMeta=$('#chMeta',main);
+      if(chWA) chWA.onclick=()=>{state.channel='whatsapp';localStorage.setItem('channel','whatsapp');state.channelStep=1;render();};
+      if(chGHL) chGHL.onclick=()=>{state.channel='ghl';localStorage.setItem('channel','ghl');state.channelStep=1;render();};
+      if(chMeta) chMeta.onclick=()=>{state.channel='meta';localStorage.setItem('channel','meta');state.channelStep=1;render();};
+      const importInput=$('#importFile',main);
+      if(importInput)importInput.onchange=e=>{const f=e.target.files?.[0];if(f)importChats(f);};
+
+    // ── STEP 0b: CONFIG FORM ──
+    } else {
+      const chColor=state.channel==='whatsapp'?'var(--evoG)':state.channel==='ghl'?'var(--ghl)':'var(--meta)';
+      const chLogo=state.channel==='whatsapp'?'./WhatsappLogo.png':state.channel==='ghl'?'./GoHighLevelLogo.png':'./METALogo.png';
+      const chName=state.channel==='whatsapp'?'WhatsApp':state.channel==='ghl'?'Go High Level':'Importación de Meta';
+      main.innerHTML=`
+        <div style="max-width:500px;margin:0 auto">
+          <button id="btnBackChannel" class="btn btn-g" style="margin-bottom:24px;padding:6px 14px">← Volver</button>
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--brd)">
+              <img src="${chLogo}" alt="${chName}" style="height:28px;object-fit:contain">
+              <span class="fd" style="font-size:16px;color:${chColor}">${chName}</span>
             </div>
-            <div style="margin-bottom:16px"><label class="label">API Key (Bearer Token)</label><input id="inGhlKey" type="password" placeholder="Tu API key o Private Integration Token de GHL" /></div>
-            <div style="margin-bottom:16px"><label class="label">Location ID</label><input id="inGhlLocation" type="text" placeholder="Location ID de tu sub-cuenta GHL" /></div>
-            <div style="margin-bottom:6px;padding:10px;background:var(--ghlB);border:1px solid rgba(255,106,0,.15);border-radius:6px">
-              <span class="fm" style="font-size:10px;color:var(--ghl);font-weight:600">¿Dónde encuentro esto?</span>
-              <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6">
-                <b>API Key</b>: Settings → Integrations → API Key (o creá una Private Integration en Developer settings).<br>
-                <b>Location ID</b>: Settings → Business Info → Company (aparece en la URL como <code style="color:var(--ghl)">/location/xxxxx</code>).
+
+            ${state.channel==='whatsapp'?`
+              <div style="margin-bottom:16px"><label class="label">URL de Evolution API</label><input id="inUrl" type="text" placeholder="https://evo.tudominio.com" /></div>
+              <div style="margin-bottom:16px"><label class="label">API Key Evolution</label><input id="inKey" type="password" placeholder="Tu global API key de Evolution" /></div>
+              <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKey" type="password" placeholder="sk-ant-..." /></div>
+              <button class="btn btn-green" id="btnConnect" style="width:100%">Conectar y ver instancias →</button>
+            `:''}
+
+            ${state.channel==='ghl'?`
+              <div style="margin-bottom:16px"><label class="label">API Key (Bearer Token)</label><input id="inGhlKey" type="password" placeholder="Tu API key o Private Integration Token de GHL" /></div>
+              <div style="margin-bottom:16px"><label class="label">Location ID</label><input id="inGhlLocation" type="text" placeholder="Location ID de tu sub-cuenta GHL" /></div>
+              <div style="margin-bottom:6px;padding:10px;background:var(--ghlB);border:1px solid rgba(255,106,0,.15);border-radius:6px">
+                <span class="fm" style="font-size:10px;color:var(--ghl);font-weight:700">¿Dónde encuentro esto?</span>
+                <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6">
+                  <b>API Key</b>: Settings → Integrations → API Key (o creá una Private Integration en Developer settings).<br>
+                  <b>Location ID</b>: Settings → Business Info → Company (aparece en la URL como <code style="color:var(--ghl)">/location/xxxxx</code>).
+                </div>
               </div>
-            </div>
-            <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKeyGHL" type="password" placeholder="sk-ant-..." /></div>
-            <button class="btn btn-ghl" id="btnConnectGHL" style="width:100%">Conectar con Go High Level →</button>
+              <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKeyGHL" type="password" placeholder="sk-ant-..." /></div>
+              <button class="btn btn-ghl" id="btnConnectGHL" style="width:100%">Conectar con Go High Level →</button>
+            `:''}
+
+            ${state.channel==='meta'?`
+              <div style="margin-bottom:16px;padding:12px;background:var(--metaB);border:1px solid rgba(24,119,242,.15);border-radius:6px">
+                <span class="fm" style="font-size:10px;color:var(--meta);font-weight:700">¿Cómo exportar chats de Meta?</span>
+                <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6">
+                  <b>Facebook Messenger</b>: Configuración → Tu información en Facebook → Descargar tu información → Mensajes.<br>
+                  <b>Instagram</b>: Configuración → Privacidad y seguridad → Descargar datos → Mensajes.
+                </div>
+              </div>
+              <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKeyMeta" type="password" placeholder="sk-ant-..." /></div>
+              <label style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--meta);border:none;padding:10px 24px;border-radius:4px;cursor:pointer;font-weight:800;font-size:12px;color:#fff;font-family:'Venn','Inter','Helvetica Neue',sans-serif;letter-spacing:0.3px;width:100%">
+                📂 Cargar exportación de Meta (.json, .zip)
+                <input type="file" accept=".json,.zip" id="metaImportFile" style="display:none" />
+              </label>
+            `:''}
+
             <div style="margin-top:14px;font-size:11px;color:var(--dim)">🔒 Se guarda en tu navegador (localStorage) para no tipear cada vez.</div>
           </div>
-        </div>
-      </div>
+        </div>`;
 
-      ${!state.channel?'<div style="text-align:center;padding:20px"><p style="color:var(--dim);font-size:13px">👆 Seleccioná un canal para empezar</p></div>':''}
+      const btnBack=$('#btnBackChannel',main);
+      if(btnBack) btnBack.onclick=()=>{state.channelStep=0;state.error=null;render();};
 
-      <div style="max-width:500px;margin:20px auto 0;text-align:center">
-        <div class="scala-line" style="width:40px;margin:0 auto 16px"></div>
-        <p style="color:var(--dim);font-size:13px;margin-bottom:12px">¿Ya tenés chats exportados de un análisis anterior?</p>
-        <label style="display:inline-flex;align-items:center;gap:8px;background:var(--sf);border:1px solid var(--brd);padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--txt);transition:all .15s">
-          📂 Cargar chats exportados (.json, .csv, .txt)
-          <input type="file" accept=".json,.csv,.txt" id="importFile" style="display:none" />
-        </label>
-      </div>`;
-    
-    // Channel selection handlers
-    const chWA=$('#chWA',main); const chGHL=$('#chGHL',main);
-    if(chWA) chWA.onclick=()=>{state.channel='whatsapp';localStorage.setItem('channel','whatsapp');render();};
-    if(chGHL) chGHL.onclick=()=>{state.channel='ghl';localStorage.setItem('channel','ghl');render();};
-
-    // WhatsApp config handlers
-    if(state.channel==='whatsapp'){
-      const inUrl=$('#inUrl',main); if(inUrl){inUrl.value=state.evoUrl;inUrl.oninput=e=>{state.evoUrl=e.target.value;};}
-      const inKey=$('#inKey',main); if(inKey){inKey.value=state.evoKey;inKey.oninput=e=>{state.evoKey=e.target.value;};}
-      const inAnthropic=$('#inAnthropicKey',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
-      const btnC=$('#btnConnect',main); if(btnC) btnC.onclick=()=>{if(state.evoUrl&&state.evoKey)fetchInstances();};
+      if(state.channel==='whatsapp'){
+        const inUrl=$('#inUrl',main); if(inUrl){inUrl.value=state.evoUrl;inUrl.oninput=e=>{state.evoUrl=e.target.value;};}
+        const inKey=$('#inKey',main); if(inKey){inKey.value=state.evoKey;inKey.oninput=e=>{state.evoKey=e.target.value;};}
+        const inAnthropic=$('#inAnthropicKey',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
+        const btnC=$('#btnConnect',main); if(btnC) btnC.onclick=()=>{if(state.evoUrl&&state.evoKey)fetchInstances();};
+      }
+      if(state.channel==='ghl'){
+        const inGK=$('#inGhlKey',main); if(inGK){inGK.value=state.ghlKey;inGK.oninput=e=>{state.ghlKey=e.target.value;};}
+        const inGL=$('#inGhlLocation',main); if(inGL){inGL.value=state.ghlLocationId;inGL.oninput=e=>{state.ghlLocationId=e.target.value;};}
+        const inAnthropic=$('#inAnthropicKeyGHL',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
+        const btnG=$('#btnConnectGHL',main); if(btnG) btnG.onclick=()=>{if(state.ghlKey&&state.ghlLocationId)fetchGHLConversations();};
+      }
+      if(state.loading)main.append(spinner('Conectando...'));
+      if(state.error)main.append(errorBox(state.error));
     }
-
-    // GHL config handlers
-    if(state.channel==='ghl'){
-      const inGK=$('#inGhlKey',main); if(inGK){inGK.value=state.ghlKey;inGK.oninput=e=>{state.ghlKey=e.target.value;};}
-      const inGL=$('#inGhlLocation',main); if(inGL){inGL.value=state.ghlLocationId;inGL.oninput=e=>{state.ghlLocationId=e.target.value;};}
-      const inAnthropic=$('#inAnthropicKeyGHL',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
-      const btnG=$('#btnConnectGHL',main); if(btnG) btnG.onclick=()=>{if(state.ghlKey&&state.ghlLocationId)fetchGHLConversations();};
-    }
-
-    const importInput=$('#importFile',main);
-    if(importInput)importInput.onchange=e=>{const f=e.target.files?.[0];if(f)importChats(f);};
-    if(state.loading)main.append(spinner('Conectando...'));
-    if(state.error)main.append(errorBox(state.error));
   }
 
   // ── STEP 1: INSTANCES ──
@@ -1077,7 +1106,7 @@ function render(){
         const isConn=data.connectionStatus==='open'||data.status==='open';
         const card=el('div',{className:`inst-card ${isConn?'connected':''}`,onClick:()=>selectInstance(inst)});
         card.append(el('div',{className:`dot ${isConn?'dot-on':'dot-off'}`}));
-        card.append(el('div',{style:{fontSize:'15px',fontWeight:700,marginBottom:'4px'}},data.instanceName||data.name||'Sin nombre'));
+        card.append(el('div',{className:'fd',style:{fontSize:'15px',fontWeight:800,marginBottom:'4px'}},data.instanceName||data.name||'Sin nombre'));
         if(data.ownerJid||data.number)card.append(el('div',{className:'fm',style:{fontSize:'12px',color:'var(--dim)',marginBottom:'8px'}},`📱 ${data.ownerJid||data.number||''}`));
         if(data.profileName)card.append(el('div',{style:{fontSize:'12px',color:'var(--dim)',marginBottom:'8px'}},data.profileName));
         const badge=el('span',{className:'fm',style:{fontSize:'10px',fontWeight:700,padding:'3px 8px',borderRadius:'4px',textTransform:'uppercase',background:isConn?'var(--goodB)':'var(--accB)',color:isConn?'var(--good)':'var(--acc)'}});
@@ -1110,7 +1139,7 @@ function render(){
         wait.append(el('span',{className:'fm',style:{fontSize:'11px',color:'var(--warn)'}},'Esperando escaneo...'));
         box.append(wait);
       }
-      if(state.connectionStatus==='connected')box.append(el('div',{style:{padding:'16px',background:'var(--goodB)',borderRadius:'8px'},innerHTML:'<span style="color:var(--good);font-weight:600">✅ ¡Conectado!</span>'}));
+      if(state.connectionStatus==='connected')box.append(el('div',{style:{padding:'16px',background:'var(--goodB)',borderRadius:'8px'},innerHTML:'<span style="color:var(--good);font-weight:700">✅ ¡Conectado!</span>'}));
       if(state.connectionStatus==='error'&&state.error)box.append(errorBox(state.error));
       main.append(box);
     }
@@ -1123,7 +1152,7 @@ function render(){
     const info=el('div',{className:'card',style:{marginBottom:'24px',display:'flex',alignItems:'center',gap:'14px',justifyContent:'center',borderColor:isGHL?'rgba(255,106,0,.2)':'rgba(37,211,102,.2)'}});
     info.append(el('div',{style:{width:'12px',height:'12px',borderRadius:'50%',background:isGHL?'var(--ghl)':'var(--evoG)',boxShadow:isGHL?'0 0 10px rgba(255,106,0,.4)':'0 0 10px rgba(37,211,102,.4)'}}));
     const idata=el('div',{style:{textAlign:'left'}});
-    idata.append(el('div',{style:{fontSize:'15px',fontWeight:700}},state.instanceName));
+    idata.append(el('div',{className:'fd',style:{fontSize:'15px',fontWeight:800}},state.instanceName));
     idata.append(el('div',{className:'fm',style:{fontSize:'11px',color:'var(--dim)'}},isGHL?'Go High Level · Lista para extraer':'WhatsApp · Lista para extraer'));
     info.append(idata);wrap.append(info);
     wrap.append(el('h2',{className:'fd',style:{fontSize:'24px',fontWeight:800,marginBottom:'10px',letterSpacing:'-0.02em'}},'Extraer conversaciones'));
@@ -1216,35 +1245,35 @@ function render(){
                   <circle cx="40" cy="40" r="34" fill="none" stroke="${scoreColor}" stroke-width="5" stroke-dasharray="${(score/100)*213.6} 213.6" stroke-linecap="round" transform="rotate(-90 40 40)" style="transition:stroke-dasharray 1s"/>
                 </svg>
                 <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
-                  <div class="fd" style="font-size:22px;font-weight:700;color:${scoreColor}">${score}</div>
+                  <div class="fd" style="font-size:22px;font-weight:800;color:${scoreColor}">${score}</div>
                 </div>
               </div>
-              <div class="fm" style="font-size:10px;color:${scoreColor};font-weight:600;margin-top:4px">${scoreLabel}</div>
+              <div class="fm" style="font-size:10px;color:${scoreColor};font-weight:700;margin-top:4px">${scoreLabel}</div>
             </div>
           </div>
           
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
             <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${responseColor}">
               <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⏱ Tiempo respuesta promedio</div>
-              <div class="fd" style="font-size:24px;color:${responseColor};font-weight:700">${avgResponseStr}</div>
+              <div class="fd" style="font-size:24px;color:${responseColor};font-weight:800">${avgResponseStr}</div>
               <div style="font-size:10px;color:var(--dim);margin-top:4px">${avgResponseHrs<=2?'Excelente':'Ideal: < 2 horas'}</div>
             </div>
             
             <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${followupColor}">
               <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔄 Seguimientos promedio</div>
-              <div class="fd" style="font-size:24px;color:${followupColor};font-weight:700">${avgFollowups}</div>
+              <div class="fd" style="font-size:24px;color:${followupColor};font-weight:800">${avgFollowups}</div>
               <div style="font-size:10px;color:var(--dim);margin-top:4px">por conversación comercial</div>
             </div>
             
             <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${convColor}">
               <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📊 Tasa de cierre</div>
-              <div class="fd" style="font-size:24px;color:${convColor};font-weight:700">${conversionRate}%</div>
+              <div class="fd" style="font-size:24px;color:${convColor};font-weight:800">${conversionRate}%</div>
               <div style="font-size:10px;color:var(--dim);margin-top:4px">${closedSales} de ${totalCommercial} conversaciones</div>
             </div>
             
             <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid var(--danger)">
               <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">💰 Ventas recuperables</div>
-              <div class="fd" style="font-size:24px;color:var(--danger);font-weight:700">${recoverableChats}</div>
+              <div class="fd" style="font-size:24px;color:var(--danger);font-weight:800">${recoverableChats}</div>
               <div style="font-size:10px;color:var(--dim);margin-top:4px">con mejor manejo de objeciones</div>
             </div>
           </div>
@@ -1311,7 +1340,7 @@ function render(){
         const top=el('div',{style:{display:'grid',gridTemplateColumns:'160px 1fr',gap:'16px',marginBottom:'20px'}});
         const scoreBox=el('div',{className:'card',style:{display:'flex',alignItems:'center',justifyContent:'center'}});
         const c=a.score>=70?'var(--good)':a.score>=40?'var(--warn)':'var(--acc)';
-        scoreBox.innerHTML=`<div style="text-align:center"><svg viewBox="0 0 100 100" width="100" height="100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--sf3)" stroke-width="6"/><circle cx="50" cy="50" r="42" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${(a.score/100)*264} 264" stroke-linecap="round" transform="rotate(-90 50 50)"/></svg><div style="position:relative;top:-62px;font-size:26px;font-weight:700;color:${c}" class="fd">${a.score}</div><div style="font-size:11px;font-weight:600;color:${c};margin-top:-40px">${a.score>=70?'Bueno':a.score>=40?'Regular':'Crítico'}</div></div>`;
+        scoreBox.innerHTML=`<div style="text-align:center"><svg viewBox="0 0 100 100" width="100" height="100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--sf3)" stroke-width="6"/><circle cx="50" cy="50" r="42" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${(a.score/100)*264} 264" stroke-linecap="round" transform="rotate(-90 50 50)"/></svg><div style="position:relative;top:-62px;font-size:26px;font-weight:800;color:${c}" class="fd">${a.score}</div><div style="font-size:11px;font-weight:700;color:${c};margin-top:-40px">${a.score>=70?'Bueno':a.score>=40?'Regular':'Crítico'}</div></div>`;
         const sumBox=el('div',{className:'card'});
         sumBox.append(el('h3',{className:'fd',style:{marginBottom:'8px',fontSize:'16px'}},'Resumen ejecutivo'));
         sumBox.append(el('p',{style:{color:'var(--dim)',fontSize:'13px',lineHeight:'1.7'}},a.resumen));
@@ -1367,7 +1396,7 @@ function renderLeakCard(container,leak,withViewBtn=false){
   const top=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'8px',flexWrap:'wrap',marginBottom:'8px'}});
   const left=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
   left.append(el('span',{style:{fontSize:'14px'}},leak.icon||'⚠️'));
-  left.append(el('span',{style:{fontSize:'13px',fontWeight:700}},leak.label||leak.tipo||''));
+  left.append(el('span',{className:'fd',style:{fontSize:'13px',fontWeight:800}},leak.label||leak.tipo||''));
   const sevC=leak.severity==='high'?'var(--danger)':leak.severity==='medium'?'var(--warn)':'var(--sec)';
   const sevL=leak.severity==='high'?'ALTA':leak.severity==='medium'?'MEDIA':'BAJA';
   const badge=el('span',{className:'sev',style:{background:sevC+'18',color:sevC}},sevL);
