@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCALA — Sales Leak Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+<style>
+  :root {
+    --bg:#000000;--sf:#0a0a0f;--sf2:#12121a;--sf3:#1a1a25;
+    --acc:#185de8;--accD:#1248b8;--accB:#185de812;
+    --sec:#6bdda1;--secB:#6bdda112;
+    --good:#6bdda1;--goodB:#6bdda112;--warn:#f59e0b;--warnB:#f59e0b12;
+    --danger:#e53e3e;--dangerB:#e53e3e12;
+    --info:#548ee2;--infoB:#548ee212;
+    --txt:#e4e4e8;--dim:#848484;--dimL:#999999;
+    --brd:#1e1e2a;--brdL:#2a2a38;--evoG:#25D366;
+    --gray1:#bababa;--gray2:#d6d6d6;
+    --ghl:#FF6A00;--ghlB:#FF6A0012;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:'Helvetica Neue','Helvetica','Arial',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+  .fm{font-family:'Geist Mono','JetBrains Mono','SF Mono',monospace}
+  .fd{font-family:'Outfit','Helvetica Neue','Arial Black',sans-serif;font-weight:800;letter-spacing:-0.02em}
+  .btn{padding:8px 18px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;font-family:'Helvetica Neue',sans-serif;transition:all .15s;border:1px solid var(--brd);background:var(--sf2);color:var(--txt);letter-spacing:0.3px}
+  .btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-p{background:var(--acc);border-color:var(--acc);color:#fff}
+  .btn-g{background:transparent;color:var(--dim)}
+  .btn-green{background:var(--evoG);border-color:var(--evoG);color:#fff}
+  .btn-ghl{background:var(--ghl);border-color:var(--ghl);color:#fff}
+  .btn-sec{background:var(--sec);border-color:var(--sec);color:#000}
+  input,select{width:100%;background:var(--sf2);border:1px solid var(--brd);border-radius:4px;padding:10px 14px;color:var(--txt);font-size:13px;font-family:'Geist Mono',monospace;outline:none}
+  input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(24,93,232,.15)}
+  #ghlConfig input:focus{border-color:var(--ghl);box-shadow:0 0 0 2px rgba(255,106,0,.15)}
+  .card{background:var(--sf);border:1px solid var(--brd);border-radius:8px;padding:20px}
+  .label{display:block;font-size:10px;font-weight:700;color:var(--dim);margin-bottom:6px;font-family:'Geist Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+  .topbar{padding:14px 24px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;background:var(--sf);flex-wrap:wrap;gap:8px}
+  .main{padding:28px 24px;max-width:960px;margin:0 auto}
+  .kpi{border-radius:6px;padding:16px;text-align:center}
+  .kpi-v{font-size:26px;font-weight:800;font-family:'Outfit','Helvetica Neue',sans-serif;letter-spacing:-0.02em}
+  .kpi-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:'Geist Mono',monospace}
+  .sev{padding:2px 10px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Geist Mono',monospace;letter-spacing:0.5px}
+  .leak{background:var(--sf);border:1px solid var(--brd);border-radius:6px;padding:16px;margin-bottom:10px}
+  .bubble{max-width:80%;padding:8px 12px;border-radius:8px;font-size:12px;line-height:1.5;word-break:break-word}
+  .bubble-me{background:rgba(24,93,232,.15);border:1px solid rgba(24,93,232,.25);border-radius:8px 8px 2px 8px;margin-left:auto}
+  .bubble-them{background:var(--sf2);border:1px solid var(--brd);border-radius:8px 8px 8px 2px}
+  .spinner{width:32px;height:32px;border:3px solid var(--brd);border-top:3px solid var(--acc);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .inst-card{border:1px solid var(--brd);border-radius:6px;padding:18px;cursor:pointer;transition:all .2s;position:relative;background:var(--sf)}
+  .inst-card:hover{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+  .inst-card.connected{border-color:rgba(107,221,161,.25)}
+  .inst-card.selected{border-color:var(--acc);background:rgba(24,93,232,.05)}
+  .dot{width:10px;height:10px;border-radius:50%;position:absolute;top:12px;right:12px}
+  .dot-on{background:var(--sec);box-shadow:0 0 8px rgba(107,221,161,.4)}
+  .dot-off{background:var(--danger)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .error{background:var(--dangerB);border:1px solid rgba(229,62,62,.2);border-radius:6px;padding:12px 16px;margin-top:16px}
+  .error span{font-size:12px;color:var(--danger)}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 0;margin-bottom:10px;font-family:'Geist Mono',monospace}
+  /* SCALA gradient accent line */
+  .scala-line{height:2px;background:linear-gradient(90deg,var(--acc),var(--sec));border-radius:1px}
+  /* Subtle grid texture */
+  .scala-bg{background-image:linear-gradient(rgba(24,93,232,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(24,93,232,.03) 1px,transparent 1px);background-size:40px 40px}
+  /* Channel selector */
+  .channel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:500px;margin:0 auto 28px}
+  .channel-card{border:2px solid var(--brd);border-radius:10px;padding:20px 16px;cursor:pointer;transition:all .2s;text-align:center;position:relative;background:var(--sf)}
+  .channel-card:hover{border-color:var(--dimL);transform:translateY(-1px)}
+  .channel-card.ch-active-wa{border-color:var(--evoG);background:rgba(37,211,102,.04);box-shadow:0 0 0 1px var(--evoG)}
+  .channel-card.ch-active-ghl{border-color:var(--ghl);background:rgba(255,106,0,.04);box-shadow:0 0 0 1px var(--ghl)}
+  .channel-card .ch-icon{font-size:32px;margin-bottom:8px}
+  .channel-card .ch-label{font-size:14px;font-weight:700}
+  .channel-card .ch-desc{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
+  .channel-card .ch-check{position:absolute;top:10px;right:10px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .ch-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;font-family:'Geist Mono',monospace;letter-spacing:0.5px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => [...ctx.querySelectorAll(sel)];
+const el = (tag, attrs={}, ...children) => {
+  const e = document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v]) => {
+    if(k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if(k === 'className') e.className = v;
+    else if(k === 'innerHTML') e.innerHTML = v;
+    else e.setAttribute(k,v);
+  });
+  children.flat().forEach(c => { if(c) e.append(typeof c === 'string' ? document.createTextNode(c) : c); });
+  return e;
+};
+
+// ─── STATE ───
+let state = {
+  step: 0, // 0=config, 1=instances, 2=extract, 3=dashboard
+  channel: localStorage.getItem('channel') || '', // 'whatsapp' or 'ghl'
+  evoUrl: localStorage.getItem('evoUrl') || '',
+  evoKey: localStorage.getItem('evoKey') || '',
+  ghlKey: localStorage.getItem('ghlKey') || '',
+  ghlLocationId: localStorage.getItem('ghlLocationId') || '',
+  anthropicKey: localStorage.getItem('anthropicKey') || '',
+  instances: [],
+  selectedInstance: null,
+  instanceName: '',
+  messages: [],
+  leaks: [],
+  aiAnalysis: null,
+  activeTab: 'leaks',
+  error: null,
+  loading: false,
+  loadingMsg: '',
+  chatFilter: 'all',
+  search: '',
+  viewingLeak: null,
+  visibleCount: 100,
+  qrCode: null,
+  connectionStatus: 'idle',
+  showNewInstance: false,
+};
+
+let pollInterval = null;
+
+// ─── API ───
+async function apiCall(path, method='GET', body=null) {
+  const url = `${state.evoUrl.replace(/\/$/,'')}${path}`;
+  const opts = { method, headers: { 'Content-Type': 'application/json', apikey: state.evoKey } };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if(!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ─── GHL API ───
+async function ghlApiCall(path, method='GET', body=null) {
+  const base = 'https://services.leadconnectorhq.com';
+  const url = `${base}${path}`;
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.ghlKey}`, 'Version': '2021-04-15' } };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if(!res.ok) {
+    const errText = await res.text().catch(()=>'');
+    throw new Error(`GHL ${res.status}: ${errText.substring(0,200)}`);
+  }
+  return res.json();
+}
+
+async function fetchGHLConversations() {
+  state.loading=true;state.loadingMsg='Conectando con Go High Level...';state.error=null;render();
+  try {
+    localStorage.setItem('ghlKey',state.ghlKey);
+    localStorage.setItem('ghlLocationId',state.ghlLocationId);
+    localStorage.setItem('channel','ghl');
+    // Test connection by fetching conversations
+    const r = await ghlApiCall(`/conversations/search?locationId=${state.ghlLocationId}&limit=1`);
+    console.log('GHL connection test response keys:', Object.keys(r), 'startAfterId:', r.startAfterId, 'total:', r.total, 'meta:', r.meta);
+    if(r.conversations !== undefined) {
+      state.instanceName = `GHL_${state.ghlLocationId.substring(0,8)}`;
+      state.step = 2;
+    } else {
+      throw new Error('Respuesta inesperada de GHL. Verificá tus credenciales.');
+    }
+  } catch(e) { state.error = 'No se pudo conectar a GHL: ' + e.message; }
+  state.loading=false; render();
+}
+
+async function extractGHLMessages() {
+  state.loading=true;state.loadingMsg='Obteniendo conversaciones de GHL...';state.error=null;render();
+  try {
+    const all=[];
+    
+    // ─── STEP 1: Fetch ALL conversations ───
+    // Strategy: /conversations/search caps at 100 with no pagination.
+    // So we first grab up to 100 from search, then use /contacts/ (which HAS
+    // proper startAfterId pagination) to discover remaining contacts and look
+    // up their conversations via the contactId.
+    
+    const conversationMap = new Map();
+    const PAGE_SIZE = 100;
+    
+    // Phase A: Get first batch from conversations/search (fast, up to 100)
+    state.loadingMsg='Fase 1: Cargando conversaciones recientes...';render();
+    const r = await ghlApiCall(`/conversations/search?locationId=${state.ghlLocationId}&limit=${PAGE_SIZE}&sortBy=last_message_date&sortOrder=desc`);
+    const firstBatch = r.conversations || [];
+    const knownTotal = r.total || 0;
+    firstBatch.forEach(c => conversationMap.set(c.id, c));
+    console.log(`GHL Phase A: ${firstBatch.length} conversations from search (total reported: ${knownTotal})`);
+    
+    // Phase B: If there are more conversations, fetch ALL contacts and look up their conversations
+    if(knownTotal > conversationMap.size) {
+      state.loadingMsg=`Fase 2: Cargando contactos para encontrar las ${knownTotal - conversationMap.size} conversaciones restantes...`;render();
+      
+      // Build a set of contactIds we already have from phase A
+      const knownContactIds = new Set();
+      firstBatch.forEach(c => { if(c.contactId) knownContactIds.add(c.contactId); });
+      
+      // Paginate through /contacts/ endpoint (supports startAfterId)
+      let contactsToLookup = [];
+      let hasMore = true;
+      let startAfterId = null;
+      let startAfter = null;
+      let contactPage = 0;
+      
+      while(hasMore && contactPage < 100) {
+        contactPage++;
+        let url = `/contacts/?locationId=${state.ghlLocationId}&limit=100`;
+        if(startAfterId) url += `&startAfterId=${encodeURIComponent(startAfterId)}`;
+        if(startAfter) url += `&startAfter=${encodeURIComponent(startAfter)}`;
+        
+        state.loadingMsg=`Fase 2: Cargando contactos (pág ${contactPage}, ${contactsToLookup.length} nuevos contactos)...`;render();
+        
+        const cr = await ghlApiCall(url);
+        const contacts = cr.contacts || [];
+        
+        if(contacts.length === 0) { hasMore = false; break; }
+        
+        // Collect contacts whose conversations we don't have yet
+        contacts.forEach(ct => {
+          if(!knownContactIds.has(ct.id)) {
+            contactsToLookup.push(ct);
+            knownContactIds.add(ct.id);
+          }
+        });
+        
+        // Get pagination cursor from response meta
+        const meta = cr.meta || cr;
+        const nextId = meta.startAfterId || null;
+        const nextAfter = meta.startAfter || null;
+        
+        console.log(`GHL contacts page ${contactPage}: ${contacts.length} contacts, ${contactsToLookup.length} to lookup. Cursor: ${nextId||'none'}`);
+        
+        if(contacts.length < 100) { hasMore = false; break; }
+        if(!nextId || nextId === startAfterId) { hasMore = false; break; }
+        
+        startAfterId = nextId;
+        startAfter = nextAfter;
+        await new Promise(r=>setTimeout(r,300));
+      }
+      
+      // Now look up conversations for these contacts
+      console.log(`GHL Phase B: Looking up conversations for ${contactsToLookup.length} additional contacts`);
+      let looked = 0;
+      for(const ct of contactsToLookup) {
+        looked++;
+        if(looked % 20 === 0 || looked <= 3) {
+          state.loadingMsg=`Fase 2: Buscando conversación ${looked}/${contactsToLookup.length} (${conversationMap.size} encontradas)...`;render();
+        }
+        try {
+          // Search for conversation by contactId
+          const sr = await ghlApiCall(`/conversations/search?locationId=${state.ghlLocationId}&contactId=${ct.id}&limit=1`);
+          const convs = sr.conversations || [];
+          convs.forEach(c => { if(!conversationMap.has(c.id)) conversationMap.set(c.id, c); });
+        } catch(e) { /* some contacts may not have conversations */ }
+        // Rate limit: 100 req / 10 sec = 10 req/sec max
+        await new Promise(r=>setTimeout(r,120));
+      }
+    }
+    
+    const conversations = Array.from(conversationMap.values());
+    if(!conversations.length) throw new Error('No se encontraron conversaciones en GHL.');
+    
+    console.log(`GHL: ${conversations.length} conversaciones totales encontradas (de ${knownTotal} reportadas)`);
+    state.loadingMsg=`${conversations.length} conversaciones. Extrayendo mensajes...`;render();
+    
+    // ─── GHL SYSTEM MESSAGE PATTERNS (to filter out) ───
+    const GHL_SYSTEM_PATTERNS = [
+      /^opportunity\s+(created|deleted|updated|status)/i,
+      /^task\s+(added|completed|updated|deleted)/i,
+      /^note\s+(added|updated)/i,
+      /^call\s+(completed|missed|started)/i,
+      /^email\s+(opened|clicked|bounced|delivered)/i,
+      /^llamada\s+a\s+(lead|contact)/i,
+      /^llamada\s+(entrante|saliente)/i,
+      /^resumen\s+del\s+lead\s+en/i,
+      /^abandonado\s+por\s+no\s+respuesta$/i,
+      /^workflow/i,
+      /^appointment/i,
+      /^invoice/i,
+      /^payment\s+(received|failed)/i,
+    ];
+    
+    function isGHLSystemMsg(text) {
+      const t = text.trim();
+      // CRM system events
+      if(GHL_SYSTEM_PATTERNS.some(rx => rx.test(t))) return true;
+      // Internal notes with @mentions and userId tags
+      if(t.includes('<userId>') && t.includes('</userId>')) return true;
+      // Full email forwards with headers
+      if(/^(De|From|Enviado|Sent|El\s+\w{3},\s+\d):.{20,}(escribió|wrote)/i.test(t)) return true;
+      if(/^_{5,}\s*\n?\s*(De|From):/m.test(t)) return true;
+      return false;
+    }
+    
+    function isGHLEmailHTML(text) {
+      // GHL email templates with storage URLs and unsubscribe links
+      if(text.includes('storage.googleapis.com/msgsndr') && text.length > 400) return true;
+      if(text.includes('services.msgsndr.com/emails/builder/unsubscribe')) return true;
+      // Email with full HTML structure embedded
+      if(text.includes('Actualiza tus preferencias de email') && text.includes('©')) return true;
+      return false;
+    }
+    
+    function cleanGHLText(text) {
+      let t = text;
+      // Remove storage URLs at the start (image links)
+      t = t.replace(/^\[https:\/\/[^\]]+\]\s*/g, '');
+      // Remove multiple blank lines
+      t = t.replace(/\n{3,}/g, '\n\n');
+      return t.trim();
+    }
+    
+    // Fetch messages for each conversation
+    let p=0, errCount=0, emptyCount=0, dupCount=0, sysCount=0;
+    const globalSeen = new Set(); // Global dedup across all conversations
+    const startTime=Date.now();
+    for(const conv of conversations) {
+      p++;
+      const contactName = conv.contactName || conv.fullName || conv.contactId || conv.id;
+      const elapsed=((Date.now()-startTime)/1000/60).toFixed(1);
+      state.loadingMsg=`Chat ${p}/${conversations.length}: ${contactName} · ${all.length} msgs · ${elapsed} min${errCount>0?' · '+errCount+' err':''}`;render();
+      
+      try {
+        // Fetch messages with pagination — collect all pages for this conversation
+        let allMsgs = [];
+        let msgPage = 0;
+        let lastMsgId = undefined;
+        let fetchMore = true;
+        const msgSeenIds = new Set(); // dedup by message ID within this conv
+        
+        while(fetchMore && msgPage < 10) {
+          msgPage++;
+          let msgUrl = `/conversations/${conv.id}/messages?limit=100`;
+          if(lastMsgId) msgUrl += `&lastMessageId=${lastMsgId}`;
+          
+          const mr = await ghlApiCall(msgUrl);
+          
+          let msgs = [];
+          if(Array.isArray(mr?.messages?.messages)) msgs = mr.messages.messages;
+          else if(Array.isArray(mr?.messages)) msgs = mr.messages;
+          else if(Array.isArray(mr?.data)) msgs = mr.data;
+          else if(Array.isArray(mr)) msgs = mr;
+          
+          if(p <= 2 && msgPage === 1) console.log(`GHL conv ${p} (${contactName}):`, msgs.length, 'msgs. Sample keys:', msgs[0] ? Object.keys(msgs[0]).join(',') : 'empty');
+          
+          if(msgs.length === 0) break;
+          
+          // Check if page has new messages (by ID or content)
+          let newInPage = 0;
+          msgs.forEach(m => {
+            const mid = m.id || m._id || m.messageId || '';
+            if(mid && msgSeenIds.has(mid)) return;
+            if(mid) msgSeenIds.add(mid);
+            allMsgs.push(m);
+            newInPage++;
+          });
+          
+          // If no new messages, stop pagination for this conv
+          if(newInPage === 0) break;
+          if(msgs.length < 100) break;
+          
+          // Use last message ID for next page
+          const lastMsg = msgs[msgs.length - 1];
+          const newLastId = lastMsg?.id || lastMsg?._id || lastMsg?.messageId;
+          if(!newLastId || newLastId === lastMsgId) break;
+          lastMsgId = newLastId;
+          
+          await new Promise(r=>setTimeout(r,200));
+        }
+        
+        if(allMsgs.length === 0) { emptyCount++; continue; }
+        
+        // ─── DEDUP + FILTER each message ───
+        allMsgs.forEach(m => {
+          const text = m.body || m.message || m.text || '';
+          if(!text || typeof text !== 'string' || text.trim().length === 0) return;
+          
+          const ts = m.dateAdded ? new Date(m.dateAdded) : (m.createdAt ? new Date(m.createdAt) : (m.timestamp ? new Date(m.timestamp) : new Date()));
+          const dir = (m.direction || m.messageType || m.type || '').toString().toLowerCase();
+          const fromMe = dir.includes('outbound') || dir === '1' || dir.includes('out') || m.direction === 1;
+          
+          // Dedup key: timestamp + direction + first 100 chars of text
+          const dedupKey = `${ts.getTime()}_${fromMe}_${text.substring(0,100)}`;
+          if(globalSeen.has(dedupKey)) { dupCount++; return; }
+          globalSeen.add(dedupKey);
+          
+          // Filter system/CRM messages
+          if(isGHLSystemMsg(text)) { sysCount++; return; }
+          
+          // Filter email HTML templates
+          if(isGHLEmailHTML(text)) { sysCount++; return; }
+          
+          // Clean the text
+          const cleanText = cleanGHLText(text);
+          if(!cleanText || cleanText.length < 2) return;
+          
+          all.push({
+            date: ts.toLocaleDateString(),
+            time: ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+            sender: fromMe ? 'Vendedor' : contactName,
+            text: cleanText,
+            type: 'message',
+            fromMe,
+            chatId: conv.id,
+            chatName: contactName,
+            timestamp: ts.getTime()
+          });
+        });
+      } catch(e) { 
+        errCount++;
+        if(errCount <= 5) console.warn(`GHL error chat #${p} (${contactName}):`, e.message);
+      }
+      await new Promise(r=>setTimeout(r,200));
+    }
+    
+    console.log(`GHL extraction summary: ${all.length} clean msgs, ${dupCount} duplicados removidos, ${sysCount} sistema/email filtrados, ${errCount} errores, ${emptyCount} vacíos`);
+    
+    if(!all.length) {
+      let diagnostic = `No se encontraron mensajes reales en ${conversations.length} conversaciones de GHL.`;
+      if(dupCount > 0) diagnostic += ` Se removieron ${dupCount.toLocaleString()} mensajes duplicados.`;
+      if(sysCount > 0) diagnostic += ` Se filtraron ${sysCount} mensajes de sistema/email.`;
+      if(errCount > 0) diagnostic += ` ${errCount} chats dieron error.`;
+      diagnostic += ' Revisá F12 → Console para diagnóstico.';
+      throw new Error(diagnostic);
+    }
+    
+    all.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+    state.messages=all;state.leaks=detectLeaks(all);
+    state.extractionStats={chats:conversations.length,messages:all.length,duplicatesRemoved:dupCount,systemFiltered:sysCount};
+    state.step=3;state.activeTab='leaks';
+  } catch(e) { state.error=e.message; }
+  state.loading=false;state.loadingMsg='';render();
+}
+
+// ─── LEAK DETECTION v3 — Smart Commercial Analysis ───
+const has=(t,w)=>{const l=(t||'').toLowerCase();return w.some(x=>l.includes(x));};
+
+// Patterns - Commercial chat classifier
+const COMMERCIAL_SIGNALS=["precio","cuánto sale","cuanto sale","cuánto cuesta","cuanto cuesta","presupuesto","cotización","cotizacion","tarifa","costo","valor","promoción","descuento","disponible","tienen","hay stock","envío","quiero comprar","me interesa","necesito","quiero contratar","información","consulta","quisiera","turno","reserva","sesión","clase","curso","servicio","plan","paquete","membresía","financiación","cuotas","efectivo","transferencia","pago","factura","seña","caro","lo pienso","consulto con","fuera de presupuesto"];
+const CASUAL_SIGNALS=["felicitaciones","felicidades","genial te quedó","buenísimo","jaja","jeje","😂","🤣","👏","🎉","🙌","cumpleaños","feliz","abrazo","vacaciones","de nada","gracias por","buen finde"];
+
+function isCommercialChat(ms){
+  const t=ms.map(m=>(m.text||'').toLowerCase()).join(' ');
+  if(has(t,["precio","presupuesto","cotización","cotizacion","cuánto sale","cuanto sale","cuánto cuesta","cuanto cuesta"])) return true;
+  if(has(t,["quiero saber","me interesa","necesito","información sobre","consulta por","quiero comprar","quiero contratar"])) return true;
+  if(has(t,["te paso el precio","te mando la propuesta","te envío","quedaría en","el valor es","sale $","la inversión"])) return true;
+  const hits=COMMERCIAL_SIGNALS.filter(s=>t.includes(s)).length;
+  if(hits>=2) return true;
+  return false;
+}
+
+const OFFER_SENT=["presupuesto","cotización","cotizacion","te paso el precio","te mando la info","acá te dejo","te envío la","propuesta","el valor es","cuesta","sale $","el precio es","tarifa","te queda en","quedaría en","te mando el presupuesto","la inversión es","inversión sería"];
+const OBJECTION_SUPERFICIAL=["lo pienso","lo tengo que pensar","me lo pienso","lo voy a pensar","déjame pensarlo","dejame pensarlo","lo analizo","lo voy a analizar","consulto con","le pregunto a","le consulto a","hablo con mi","veo con mi","te confirmo","te aviso","después te digo","despues te digo","más adelante","mas adelante","ahora no puedo","no es el momento","la semana que viene","el mes que viene","te escribo yo","yo te aviso","cuando pueda","ya te digo","todavía no","voy a ver","mándame la info","mandame la info","lo veo","déjame ver","dejame ver","no sé si","no se si"];
+// Context that means it's NOT an objection (scheduling, logistics, casual)
+const NOT_OBJECTION=["a las","mediodía","mediodia","mañana a","lunes","martes","miércoles","miercoles","jueves","viernes","sábado","sabado","domingo","a la tarde","a la mañana","a la noche","nos vemos","nos juntamos","puede ser a","puede ser el","puede ser mañana","puede ser hoy","te va","te queda bien","en qué horario","en que horario","qué hora","que hora","am","pm","hs","hora","horario","turno","agenda","reunión","reunion","llamada","videollamada","meet","zoom","call"];
+function isObjection(text){
+  if(!has(text,OBJECTION_SUPERFICIAL)) return false;
+  if(has(text,NOT_OBJECTION)) return false;
+  // Very short messages with just "puede ser" in scheduling context
+  if((text||'').length<25 && has(text,["puede ser"])) return false;
+  return true;
+}
+const OBJECTION_PRICE=["caro","es mucho","está caro","esta caro","no me da","no llego","fuera de presupuesto","no tengo plata","es mucha plata","no puedo pagarlo","sale muy caro","muy elevado","bastante caro","no tengo dinero","me parece caro"];
+const INTEREST_SIGNAL=["me interesa","quiero","necesito","cuándo podemos","cuando podemos","cómo hago para","como hago para","dónde pago","donde pago","lo quiero","cerramos","avancemos","siguiente paso","cómo sigo","como sigo","quiero comprar","me lo llevo","cuándo arrancamos","cuando arrancamos","mandame los datos","cómo es el pago","como es el pago"];
+const CLOSE_ATTEMPT=["link de pago","datos para transferi","factura","seña","te paso el link","coordinamos","agenda","reunión","contrato","firmamos","arrancamos","empezamos","reserv","te mando los datos","medio de pago"];
+const FOLLOWUP_WORDS=["cómo va","como va","pudiste","decidiste","pensaste","novedades","seguimos","alguna novedad","qué decidiste","que decidiste","querés avanzar","queres avanzar","viste lo que te","te quedo alguna duda"];
+const ACCEPTED=["dale","ok","bueno","perfecto","listo","avisame","avísame","esperamos","quedo a disposición","quedo atento","cuando quieras","sin problema","tranquilo","tranqui","no hay drama","cualquier cosa","estamos","acá estamos"];
+const DUG_DEEPER=["qué es lo que","que es lo que","qué parte","que parte","qué te genera","que te genera","qué necesitarías","que necesitarias","por qué","contame","cuál es","cual es","qué te frena","que te frena","qué duda","que duda","específicamente","puntualmente","qué te preocupa","que te preocupa","fuera de eso","algo más que","si dependiera solo de","qué tendría que pasar","qué necesitas ver","qué información te falta"];
+
+function timeDiffHours(a,b){return Math.abs((b.timestamp||0)-(a.timestamp||0))/(1000*60*60);}
+function timeDiffStr(h){if(h<1)return`${Math.round(h*60)} min`;if(h<24)return`${Math.round(h)} horas`;return`${Math.round(h/24)} días`;}
+
+function detectLeaks(msgs){
+  const leaks=[],groups={};
+  msgs.forEach(m=>{const k=m.chatId||'x';if(!groups[k])groups[k]=[];groups[k].push(m);});
+  Object.entries(groups).forEach(([cid,ms])=>{
+    if(ms.length<3)return;
+    // ONLY analyze commercial conversations
+    if(!isCommercialChat(ms))return;
+    const cn=ms.find(m=>!m.fromMe)?.chatName||ms.find(m=>!m.fromMe)?.sender||cid;
+
+    // 1. DEMORA EN PRIMERA RESPUESTA COMERCIAL
+    const fc=ms.filter(m=>!m.fromMe).find(m=>has(m.text,COMMERCIAL_SIGNALS));
+    if(fc){const idx=ms.indexOf(fc);const fv=ms.slice(idx+1).find(m=>m.fromMe);
+      if(fv){const d=timeDiffHours(fc,fv);if(d>4)leaks.push({id:'slow_first',label:'Demora en respuesta a consulta comercial',desc:`El cliente consultó y el vendedor tardó ${timeDiffStr(d)}. Quien responde primero gana.`,severity:d>24?'high':'medium',icon:d>24?'🔴':'🟡',chatId:cid,chatName:cn,context:`Consulta → Respuesta ${timeDiffStr(d)} después`,messages:ms.slice(idx,ms.indexOf(fv)+2)});}
+      else leaks.push({id:'no_response',label:'Consulta comercial sin respuesta',desc:'El cliente consultó por producto/servicio y nunca hubo respuesta.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`"${(fc.text||'').substring(0,70)}..." → Sin respuesta`,messages:ms.slice(idx,idx+3)});
+    }
+
+    // 2. SEGUIMIENTO POST-OFERTA
+    ms.forEach((m,i)=>{if(!m.fromMe||!has(m.text,OFFER_SENT))return;
+      const af=ms.slice(i+1);const nc=af.find(x=>!x.fromMe);const nv=af.find(x=>x.fromMe);
+      if(!nc&&!nv)leaks.push({id:'offer_dead',label:'Presupuesto enviado sin seguimiento',desc:'Se envió presupuesto y la conversación murió. Sin follow-up, la inversión en este lead se pierde.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:'Oferta enviada → Silencio total',messages:ms.slice(Math.max(0,i-2))});
+      else if(nc&&(isObjection(nc.text)||has(nc.text,OBJECTION_PRICE))){
+        const vr=af.slice(af.indexOf(nc)+1).find(x=>x.fromMe);
+        if(!vr)leaks.push({id:'post_offer_obj',label:'Objeción post-oferta abandonada',desc:'Cliente objetó después del presupuesto y el vendedor desapareció. Momento más crítico de la venta.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`Oferta → "${(nc.text||'').substring(0,50)}..." → Sin respuesta`,messages:ms.slice(Math.max(0,i-1),af.indexOf(nc)+i+4)});
+      }else if(!nc&&nv&&!has(nv.text,FOLLOWUP_WORDS)){
+        const later=ms.slice(ms.indexOf(nv)+1);if(later.filter(x=>!x.fromMe).length===0&&!later.find(x=>x.fromMe&&has(x.text,FOLLOWUP_WORDS)))
+          leaks.push({id:'offer_no_fu',label:'Oferta sin seguimiento posterior',desc:'Se envió propuesta, el cliente no respondió y no hubo recontacto.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:'Oferta → Cliente en silencio → Sin recontacto',messages:ms.slice(Math.max(0,i-1))});
+      }
+    });
+
+    // 3. OBJECIONES SUPERFICIALES NO PROFUNDIZADAS
+    ms.forEach((m,i)=>{if(m.fromMe||!isObjection(m.text))return;
+      const va=ms.slice(i+1,i+5).filter(x=>x.fromMe);
+      if(va.length===0){leaks.push({id:'obj_ignored',label:'Objeción no respondida',desc:`Cliente: "${(m.text||'').substring(0,50)}..." — detrás hay una objeción real. Si se destapa, la venta se cierra.`,severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`"${(m.text||'').substring(0,60)}..." → Sin respuesta`,messages:ms.slice(Math.max(0,i-3),i+3)});return;}
+      const vt=va.map(x=>(x.text||'').toLowerCase()).join(' ');
+      const dug=DUG_DEEPER.some(p=>vt.includes(p));
+      const acc=ACCEPTED.some(p=>vt.includes(p))||vt.length<20;
+      if(!dug&&acc){
+        let ot='genérica';
+        if(has(m.text,["lo pienso","pensar","analizo"]))ot='"Lo voy a pensar" (falta info, confianza o prioridad)';
+        else if(has(m.text,["consulto con","pregunto a","hablo con"]))ot='"Consulto con tercero" (falta convicción)';
+        else if(has(m.text,["te confirmo","te aviso","te escribo","te digo"]))ot='"Te confirmo" (salida sin compromiso)';
+        else if(has(m.text,["más adelante","mas adelante","no es el momento","ahora no"]))ot='"No es el momento" (urgencia no activada)';
+        else if(has(m.text,["mándame la info","mandame la info"]))ot='"Mandame la info" (quiere salir de la presión)';
+        leaks.push({id:'obj_accepted',label:'Objeción superficial aceptada sin profundizar',desc:`Tipo: ${ot}. Vendedor aceptó en vez de aislar la objeción real. Detrás hay: precio, miedo, confianza, urgencia o deseo. Si se descubre, se cierra.`,severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`"${(m.text||'').substring(0,50)}..." → Vendedor no indagó`,messages:ms.slice(Math.max(0,i-3),i+5)});
+      }
+    });
+
+    // 4. OBJECIÓN DE PRECIO NO REENCUADRADA
+    ms.forEach((m,i)=>{if(m.fromMe||!has(m.text,OBJECTION_PRICE))return;
+      const va=ms.slice(i+1,i+5).filter(x=>x.fromMe);
+      const vt=va.map(x=>(x.text||'').toLowerCase()).join(' ');
+      if(!has(vt,["plan","cuota","financ","alternativa","opción","version","paquete","promoción","descuento","beneficio","valor","inversión","retorno","incluye","te cuesta más","costo de no","ahorrás","recuperás"]))
+        leaks.push({id:'price_bad',label:'Objeción de precio no reencuadrada',desc:'Cliente dijo que es caro. Vendedor no habló de retorno, no comparó con costo de inacción, no ofreció alternativas.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`"${(m.text||'').substring(0,60)}..."`,messages:ms.slice(Math.max(0,i-2),i+5)});
+    });
+
+    // 5. INTERÉS SIN CIERRE
+    ms.forEach((m,i)=>{if(m.fromMe||!has(m.text,INTEREST_SIGNAL))return;
+      const va=ms.slice(i+1,i+6).filter(x=>x.fromMe);
+      if(va.length>0&&!va.some(x=>has(x.text,CLOSE_ATTEMPT)))leaks.push({id:'no_close',label:'Señal de compra sin cierre',desc:'Cliente mostró intención clara pero vendedor no propuso cerrar.',severity:'medium',icon:'🟡',chatId:cid,chatName:cn,context:`"${(m.text||'').substring(0,60)}..." → Sin cierre`,messages:ms.slice(Math.max(0,i-1),i+5)});
+      else if(va.length===0)leaks.push({id:'int_abandoned',label:'Cliente listo para comprar sin respuesta',desc:'Cliente quiere avanzar y vendedor no respondió. Venta servida en bandeja.',severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`"${(m.text||'').substring(0,60)}..." → Sin respuesta`,messages:ms.slice(Math.max(0,i-1),i+3)});
+    });
+
+    // 6. DEMORA POST-OBJECIÓN
+    ms.forEach((m,i)=>{if(m.fromMe||!(isObjection(m.text)||has(m.text,OBJECTION_PRICE)))return;
+      const nv=ms.slice(i+1).find(x=>x.fromMe);
+      if(nv){const d=timeDiffHours(m,nv);if(d>24)leaks.push({id:'slow_obj',label:'Respuesta lenta post-objeción',desc:`Vendedor tardó ${timeDiffStr(d)} en responder la objeción. La ventana de atención post-objeción es corta.`,severity:'high',icon:'🔴',chatId:cid,chatName:cn,context:`Objeción → ${timeDiffStr(d)} después`,messages:ms.slice(Math.max(0,i-1),ms.indexOf(nv)+2)});}
+    });
+  });
+  const seen={};
+  return leaks.filter(l=>{const k=`${l.id}_${l.chatId}`;seen[k]=(seen[k]||0)+1;return seen[k]<=2;}).sort((a,b)=>({high:0,medium:1,low:2}[a.severity]||2)-({high:0,medium:1,low:2}[b.severity]||2));
+}
+
+// ─── ACTIONS ───
+async function fetchInstances(){
+  state.loading=true; state.error=null; render();
+  try{
+    localStorage.setItem('evoUrl',state.evoUrl);
+    localStorage.setItem('evoKey',state.evoKey);
+    localStorage.setItem('channel','whatsapp');
+    const r=await apiCall('/instance/fetchInstances');
+    state.instances=Array.isArray(r)?r:r?.instances||[];
+    state.step=1;
+  }catch(e){state.error='No se pudo conectar: '+e.message;}
+  state.loading=false; render();
+}
+
+async function createInstance(){
+  state.connectionStatus='creating';state.error=null;render();
+  try{
+    const name=`leak_${Date.now()}`;
+    state.instanceName=name;
+    const r=await apiCall('/instance/create','POST',{instanceName:name,integration:'WHATSAPP-BAILEYS',qrcode:true});
+    if(r?.qrcode?.base64){state.qrCode=r.qrcode.base64;state.connectionStatus='qr';startPolling(name);}
+    else{const cr=await apiCall(`/instance/connect/${name}`);if(cr?.base64){state.qrCode=cr.base64;state.connectionStatus='qr';startPolling(name);}else throw new Error('No se obtuvo QR.');}
+  }catch(e){state.error=e.message;state.connectionStatus='error';}
+  render();
+}
+
+function startPolling(name){
+  if(pollInterval)clearInterval(pollInterval);
+  pollInterval=setInterval(async()=>{
+    try{const s=await apiCall(`/instance/connectionState/${name}`);if(s?.instance?.state==='open'||s?.state==='open'){clearInterval(pollInterval);state.connectionStatus='connected';fetchInstances();}}catch{}
+  },3000);
+}
+
+function selectInstance(inst){
+  const data=inst.instance||inst;
+  state.selectedInstance=data;
+  state.instanceName=data.instanceName||data.name;
+  state.step=2; render();
+}
+
+async function extractMessages(){
+  state.loading=true;state.loadingMsg='Obteniendo chats...';state.error=null;render();
+  try{
+    const cr=await apiCall(`/chat/findChats/${state.instanceName}`,'POST',{});
+    const chatList=Array.isArray(cr)?cr:cr?.chats||[];
+    if(!chatList.length)throw new Error('No se encontraron chats.');
+    const all=[];let p=0;const startTime=Date.now();
+    for(const chat of chatList){
+      p++;const chatName=chat.pushName||chat.name||chat.remoteJid||chat.id||'...';
+      const elapsed=((Date.now()-startTime)/1000/60).toFixed(1);
+      state.loadingMsg=`Chat ${p}/${chatList.length}: ${chatName} · ${all.length} msgs · ${elapsed} min`;render();
+      try{
+        const jid=chat.remoteJid||chat.id||chat.jid;if(!jid)continue;
+        const mr=await apiCall(`/chat/findMessages/${state.instanceName}`,'POST',{where:{key:{remoteJid:jid}},limit:500});
+        let msgs=[];
+        if(Array.isArray(mr))msgs=mr;
+        else if(mr?.messages?.records)msgs=mr.messages.records;
+        else if(Array.isArray(mr?.messages))msgs=mr.messages;
+        else if(mr?.records)msgs=mr.records;
+        msgs.forEach(m=>{
+          const text=m.message?.conversation||m.message?.extendedTextMessage?.text||m.message?.imageMessage?.caption||m.message?.videoMessage?.caption||m.message?.buttonsResponseMessage?.selectedDisplayText||'';
+          if(!text)return;
+          const ts=m.messageTimestamp?new Date(typeof m.messageTimestamp==='number'?m.messageTimestamp*1000:m.messageTimestamp):new Date();
+          all.push({date:ts.toLocaleDateString(),time:ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),sender:m.key?.fromMe?'Vendedor':(m.pushName||chatName),text,type:'message',fromMe:!!m.key?.fromMe,chatId:jid,chatName:chatName,timestamp:ts.getTime()});
+        });
+      }catch(e){console.warn(`Error chat ${chatName}:`,e);}
+      await new Promise(r=>setTimeout(r,200));
+    }
+    if(!all.length)throw new Error('No se encontraron mensajes de texto.');
+    all.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+    state.messages=all;state.leaks=detectLeaks(all);
+    state.extractionStats={chats:chatList.length,messages:all.length};
+    state.step=3;state.activeTab='leaks';
+  }catch(e){state.error=e.message;}
+  state.loading=false;state.loadingMsg='';render();
+}
+
+async function runAI(){
+  if(!state.anthropicKey){state.aiError='Necesitás configurar tu API key de Anthropic. Andá a Configurar (←) y agregala.';state.activeTab='ai';render();return;}
+  state.aiLoading=true;state.aiError=null;state.activeTab='ai';render();
+  try{
+    // Only send commercial conversations to AI
+    const groups={};
+    state.messages.forEach(m=>{const k=m.chatId||'x';if(!groups[k])groups[k]=[];groups[k].push(m);});
+    const commercialMsgs=[];
+    Object.values(groups).forEach(ms=>{if(isCommercialChat(ms))commercialMsgs.push(...ms);});
+    const sample=(commercialMsgs.length>0?commercialMsgs:state.messages).slice(0,200).map(m=>`[${m.date} ${m.time}] ${m.fromMe?'VENDEDOR':m.sender}: ${m.text}`).join('\n');
+    const channelLabel=state.channel==='ghl'?'Go High Level (CRM)':'WhatsApp';
+    const prompt=`Sos un consultor experto en ventas que audita conversaciones comerciales de ${channelLabel}. IGNORÁ conversaciones casuales/sociales (felicitaciones, memes, saludos). Solo analizá intercambios donde hay intención de compra/venta.
+
+FUGAS CRÍTICAS A DETECTAR:
+
+1. DEMORA EN RESPUESTA: Cliente consulta y vendedor tarda +4 horas. En el primer contacto es gravísimo.
+
+2. SIN SEGUIMIENTO POST-OFERTA: Se envió presupuesto/precio → cliente no respondió → vendedor no hizo follow-up. Esto es lo MÁS COSTOSO porque ya se invirtió en el lead.
+
+3. OBJECIONES SUPERFICIALES NO PROFUNDIZADAS (LO MÁS IMPORTANTE):
+Cuando el cliente dice estas frases, son EXCUSAS que esconden objeciones reales:
+- "Lo voy a pensar" → falta información, confianza o prioridad
+- "Consulto con mi pareja/socio" → falta convicción o usa tercero como escudo
+- "Te confirmo/te aviso" → salida elegante sin compromiso real
+- "Más adelante/no es el momento" → urgencia no activada
+- "Mándame la info" → quiere salir de la presión
+- "Es caro/no me da" → no percibe valor suficiente
+
+El vendedor DEBE profundizar con preguntas como:
+"¿Qué parte específica necesitás evaluar?"
+"Fuera de eso, ¿hay algo más que te frene?"
+"Si dependiera solo de vos, ¿avanzarías?"
+"¿Qué tendría que pasar para que sí fuera el momento?"
+
+Si el vendedor dice "dale, avisame", "ok", "perfecto", "cuando quieras" → ACEPTÓ la excusa y la venta muere.
+Si el vendedor PROFUNDIZA → la venta se puede cerrar.
+
+4. INTERÉS SIN CIERRE: Cliente muestra señal de compra y vendedor no propone cerrar.
+
+IMPORTANTE: No marques como fuga conversaciones que son claramente sociales, elogios, felicitaciones o mensajes internos de equipo. Solo ventas reales.
+
+JSON válido sin backticks:
+{"fugas":[{"tipo":"demora|sin_seguimiento_post_oferta|objecion_no_profundizada|precio_no_reencuadrado|interes_sin_cierre","severidad":"alta|media|baja","descripcion":"Qué pasó concretamente","recomendacion":"Frase exacta que el vendedor debería haber dicho","fragmento":"max 120 chars del chat"}],"resumen":"Diagnóstico en 3-4 oraciones. Solo sobre conversaciones comerciales.","score":"0-100","fortalezas":["..."],"mejoras":["Top 3 mejoras con impacto en cierre"]}
+
+CONVERSACIONES:
+${sample}`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':state.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();const t=d.content?.map(i=>i.text||'').join('')||'';
+    state.aiAnalysis=JSON.parse(t.replace(/```json|```/g,'').trim());
+  }catch(e){state.aiError='Error IA: '+e.message;}
+  state.aiLoading=false;render();
+}
+
+function exportReport(){
+  let r=`REPORTE DE FUGAS DE VENTA\n${'='.repeat(50)}\nCanal: ${state.channel==='ghl'?'Go High Level':'WhatsApp'}\nInstancia: ${state.instanceName}\nFecha: ${new Date().toLocaleString()}\nMensajes: ${state.messages.length}\nFugas: ${state.leaks.length}\n\n`;
+  const bySev={high:state.leaks.filter(l=>l.severity==='high'),medium:state.leaks.filter(l=>l.severity==='medium'),low:state.leaks.filter(l=>l.severity==='low')};
+  ['high','medium','low'].forEach(s=>{const items=bySev[s];if(items.length){r+=`${s.toUpperCase()} (${items.length})\n${'-'.repeat(30)}\n`;items.forEach((l,i)=>{r+=`${i+1}. ${l.label} — ${l.chatName}\n   ${l.desc}\n   ${l.context||''}\n\n`;});}});
+  if(state.aiAnalysis)r+=`\nANÁLISIS IA\nScore: ${state.aiAnalysis.score}/100\n${state.aiAnalysis.resumen}\n`;
+  const b=new Blob([r],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`reporte_${state.instanceName}_${Date.now()}.txt`;a.click();
+}
+
+function exportChats(format){
+  if(format==='csv'){
+    const rows=[['Fecha','Hora','Remitente','Mensaje','ChatID','ChatName','FromMe']];
+    state.messages.forEach(m=>{
+      rows.push([m.date,m.time,`"${(m.sender||'').replace(/"/g,'""')}"`,`"${(m.text||'').replace(/"/g,'""').replace(/\n/g,' ')}"`,m.chatId||'',`"${(m.chatName||'').replace(/"/g,'""')}"`,m.fromMe?'SI':'NO']);
+    });
+    const csv=rows.map(r=>r.join(',')).join('\n');
+    const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`chats_${state.instanceName}_${Date.now()}.csv`;a.click();
+  }else if(format==='json'){
+    // Group by chat
+    const groups={};
+    state.messages.forEach(m=>{
+      const k=m.chatId||'unknown';
+      if(!groups[k])groups[k]={chatId:k,chatName:m.chatName||k,messages:[]};
+      groups[k].messages.push({date:m.date,time:m.time,sender:m.sender,text:m.text,fromMe:m.fromMe,timestamp:m.timestamp||0});
+    });
+    const data={instance:state.instanceName,exportDate:new Date().toISOString(),totalMessages:state.messages.length,totalChats:Object.keys(groups).length,chats:Object.values(groups)};
+    const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8;'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`chats_${state.instanceName}_${Date.now()}.json`;a.click();
+  }else if(format==='txt'){
+    let txt=`CONVERSACIONES EXTRAÍDAS\nInstancia: ${state.instanceName}\nFecha: ${new Date().toLocaleString()}\nTotal: ${state.messages.length} mensajes\n${'='.repeat(60)}\n\n`;
+    const groups={};
+    state.messages.forEach(m=>{const k=m.chatId||'x';if(!groups[k])groups[k]=[];groups[k].push(m);});
+    Object.entries(groups).forEach(([cid,ms])=>{
+      const name=ms[0]?.chatName||cid;
+      txt+=`\n${'─'.repeat(50)}\n📱 ${name}\n${ms.length} mensajes\n${'─'.repeat(50)}\n`;
+      ms.forEach(m=>{txt+=`[${m.date} ${m.time}] ${m.fromMe?'VENDEDOR':m.sender}: ${m.text}\n`;});
+      txt+='\n';
+    });
+    const b=new Blob([txt],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`chats_${state.instanceName}_${Date.now()}.txt`;a.click();
+  }
+}
+
+function reset(){
+  if(pollInterval)clearInterval(pollInterval);
+  Object.assign(state,{step:0,instances:[],selectedInstance:null,messages:[],leaks:[],aiAnalysis:null,error:null,loading:false,qrCode:null,connectionStatus:'idle',chatFilter:'all',search:'',viewingLeak:null,visibleCount:100,showNewInstance:false,aiLoading:false,aiError:null,instanceName:''});
+  render();
+}
+
+function importChats(file){
+  state.loading=true;state.error=null;render();
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const content=e.target.result;
+      let msgs=[];
+      
+      if(file.name.endsWith('.json')){
+        const data=JSON.parse(content);
+        // Handle our export format: {instance, chats:[{chatId, chatName, messages:[...]}]}
+        if(data.chats&&Array.isArray(data.chats)){
+          state.instanceName=data.instance||file.name.replace('.json','');
+          data.chats.forEach(chat=>{
+            (chat.messages||[]).forEach(m=>{
+              msgs.push({
+                date:m.date||'',
+                time:m.time||'',
+                sender:m.sender||'',
+                text:m.text||'',
+                type:'message',
+                fromMe:!!m.fromMe,
+                chatId:chat.chatId||'',
+                chatName:chat.chatName||chat.chatId||'',
+                timestamp:m.timestamp||0,
+              });
+            });
+          });
+        }
+        // Handle flat array format
+        else if(Array.isArray(data)){
+          state.instanceName=file.name.replace('.json','');
+          data.forEach(m=>{
+            msgs.push({date:m.date||'',time:m.time||'',sender:m.sender||'',text:m.text||'',type:'message',fromMe:!!m.fromMe,chatId:m.chatId||'',chatName:m.chatName||'',timestamp:m.timestamp||0});
+          });
+        }
+      }
+      else if(file.name.endsWith('.csv')){
+        state.instanceName=file.name.replace('.csv','');
+        const lines=content.split('\n');
+        // Skip header
+        for(let i=1;i<lines.length;i++){
+          const line=lines[i];if(!line.trim())continue;
+          // Parse CSV respecting quotes
+          const parts=[];let cur='',inQ=false;
+          for(let c=0;c<line.length;c++){
+            if(line[c]==='"'){inQ=!inQ;}
+            else if(line[c]===','&&!inQ){parts.push(cur);cur='';}
+            else{cur+=line[c];}
+          }
+          parts.push(cur);
+          if(parts.length>=4){
+            msgs.push({date:parts[0]||'',time:parts[1]||'',sender:(parts[2]||'').replace(/^"|"$/g,''),text:(parts[3]||'').replace(/^"|"$/g,''),type:'message',fromMe:(parts[6]||'').trim()==='SI',chatId:parts[4]||'',chatName:(parts[5]||'').replace(/^"|"$/g,''),timestamp:0});
+          }
+        }
+      }
+      else if(file.name.endsWith('.txt')){
+        state.instanceName=file.name.replace('.txt','');
+        // Try our export format first
+        const lines=content.split('\n');
+        for(const line of lines){
+          const match=line.match(/^\[(.+?)\s+(.+?)\]\s+(VENDEDOR|.+?):\s+(.+)/);
+          if(match){
+            msgs.push({date:match[1],time:match[2],sender:match[3],text:match[4],type:'message',fromMe:match[3]==='VENDEDOR',chatId:'',chatName:match[3]==='VENDEDOR'?'':match[3],timestamp:0});
+          }
+        }
+        // If no matches, try WhatsApp export format
+        if(msgs.length===0){
+          const rx=/^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?\s*m\.?)?)\s*[-–—]\s*(.+?):\s(.+)/i;
+          let cur=null;
+          for(const line of lines){
+            const m=line.match(rx);
+            if(m){if(cur)msgs.push(cur);cur={date:m[1],time:m[2],sender:m[3].trim(),text:m[4],type:'message',fromMe:false,chatId:m[3].trim(),chatName:m[3].trim()};}
+            else if(cur&&line.trim())cur.text+='\n'+line;
+          }
+          if(cur)msgs.push(cur);
+        }
+      }
+      
+      if(!msgs.length)throw new Error('No se encontraron mensajes en el archivo. Asegurate de que sea un archivo exportado desde esta app (JSON, CSV o TXT).');
+      
+      // Reconstruct timestamps from date+time if missing
+      msgs.forEach(m=>{
+        if(!m.timestamp&&m.date&&m.time){
+          try{
+            // Parse dd/mm/yyyy or d/m/yyyy
+            const dp=m.date.split('/');
+            if(dp.length===3){
+              const day=parseInt(dp[0]),month=parseInt(dp[1])-1,year=parseInt(dp[2])<100?2000+parseInt(dp[2]):parseInt(dp[2]);
+              const tp=m.time.replace(/\s/g,'').match(/(\d{1,2}):(\d{2})/);
+              if(tp){
+                const h=parseInt(tp[1]),min=parseInt(tp[2]);
+                m.timestamp=new Date(year,month,day,h,min).getTime();
+              }
+            }
+          }catch(e){}
+        }
+      });
+      
+      // ─── GHL CLEANUP: dedup + filter system messages ───
+      // Detect if this is a GHL export (instance starts with GHL_ or has GHL-like patterns)
+      const isGHLExport = (state.instanceName||'').startsWith('GHL_') || msgs.some(m => 
+        /^opportunity\s+(created|deleted|updated)/i.test((m.text||'').trim()) ||
+        (m.text||'').includes('<userId>') ||
+        (m.text||'').includes('storage.googleapis.com/msgsndr')
+      );
+      
+      if(isGHLExport) {
+        const beforeCount = msgs.length;
+        // Dedup by timestamp + direction + text prefix
+        const seen = new Set();
+        const GHL_SYS_RX = [
+          /^opportunity\s+(created|deleted|updated|status)/i,
+          /^task\s+(added|completed|updated|deleted)/i,
+          /^note\s+(added|updated)/i,
+          /^call\s+(completed|missed|started)/i,
+          /^email\s+(opened|clicked|bounced|delivered)/i,
+          /^llamada\s+a\s+(lead|contact)/i,
+          /^llamada\s+(entrante|saliente)/i,
+          /^resumen\s+del\s+lead\s+en/i,
+          /^abandonado\s+por\s+no\s+respuesta$/i,
+          /^workflow/i, /^appointment/i, /^invoice/i,
+          /^payment\s+(received|failed)/i,
+        ];
+        msgs = msgs.filter(m => {
+          const t = (m.text||'').trim();
+          // Dedup
+          const key = `${m.timestamp}_${m.fromMe}_${t.substring(0,100)}`;
+          if(seen.has(key)) return false;
+          seen.add(key);
+          // System messages
+          if(GHL_SYS_RX.some(rx => rx.test(t))) return false;
+          // Internal notes with @mentions
+          if(t.includes('<userId>') && t.includes('</userId>')) return false;
+          // Email forwards with headers
+          if(/^(De|From|Enviado|Sent|El\s+\w{3},\s+\d):.{20,}(escribió|wrote)/i.test(t)) return false;
+          if(/^_{5,}\s*\n?\s*(De|From):/m.test(t)) return false;
+          // GHL email HTML templates
+          if(t.includes('storage.googleapis.com/msgsndr') && t.length > 400) return false;
+          if(t.includes('services.msgsndr.com/emails/builder/unsubscribe')) return false;
+          if(t.includes('Actualiza tus preferencias de email') && t.includes('©')) return false;
+          return true;
+        });
+        // Clean texts
+        msgs.forEach(m => {
+          m.text = (m.text||'').replace(/^\[https:\/\/[^\]]+\]\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+        });
+        msgs = msgs.filter(m => m.text && m.text.length >= 2);
+        console.log(`GHL import cleanup: ${beforeCount} → ${msgs.length} mensajes (${beforeCount - msgs.length} removidos)`);
+        state.channel = 'ghl';
+      }
+      
+      state.messages=msgs;
+      state.leaks=detectLeaks(msgs);
+      state.extractionStats={chats:new Set(msgs.map(m=>m.chatId)).size,messages:msgs.length};
+      state.step=3;state.activeTab='leaks';
+      state.loading=false;render();
+    }catch(err){
+      state.error='Error al importar: '+err.message;
+      state.loading=false;render();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ─── RENDER ───
+function render(){
+  const app=$('#app');
+  app.innerHTML='';
+
+  // ── LEAK DETAIL VIEW ──
+  if(state.viewingLeak){
+    app.innerHTML=`
+      <div class="topbar"><button class="btn btn-g" id="backLeak">← Volver</button><div><div class="fm" style="font-size:11px;font-weight:700;color:var(--acc);letter-spacing:3px">LEAK DETECTOR</div></div></div>
+      <div class="main"><div id="leakDetail"></div><div class="card" style="margin-top:16px" id="leakChat"><h3 style="margin-bottom:12px;font-size:13px;font-weight:700">💬 Conversación</h3></div></div>`;
+    $('#backLeak').onclick=()=>{state.viewingLeak=null;render();};
+    renderLeakCard($('#leakDetail'),state.viewingLeak);
+    const chatEl=$('#leakChat');
+    (state.viewingLeak.messages||[]).forEach(m=>{
+      const row=el('div',{style:{display:'flex',justifyContent:m.fromMe?'flex-end':'flex-start',padding:'2px 0'}});
+      const bub=el('div',{className:`bubble ${m.fromMe?'bubble-me':'bubble-them'}`});
+      if(!m.fromMe)bub.append(el('div',{style:{fontSize:'10px',fontWeight:700,color:'var(--info)',marginBottom:'2px'},className:'fm'},m.sender));
+      bub.append(el('div',{},m.text));
+      bub.append(el('div',{style:{fontSize:'9px',color:'var(--dim)',textAlign:'right',marginTop:'2px'},className:'fm'},`${m.date} ${m.time}`));
+      row.append(bub);chatEl.append(row);
+    });
+    return;
+  }
+
+  // ── TOPBAR ──
+  const topbar=el('div',{className:'topbar'});
+  const topLeft=el('div',{style:{display:'flex',alignItems:'center',gap:'14px'}});
+  if(state.step>0){const bb=el('button',{className:'btn btn-g',style:{padding:'4px 10px'},onClick:()=>{
+    if(state.step===3){
+      // From dashboard: go to instances (WA) or extract (GHL)
+      state.step=state.channel==='ghl'?0:1;state.error=null;render();
+    }else if(state.step===2){
+      // From extract: go to instances (WA) or config (GHL)
+      state.step=state.channel==='ghl'?0:1;state.error=null;render();
+    }else{
+      state.step=Math.max(0,state.step-1);state.error=null;render();
+    }
+  }});bb.textContent='←';topLeft.append(bb);}
+  const info=el('div');
+  info.append(el('div',{className:'fd',style:{fontSize:'13px',fontWeight:800,color:'var(--acc)',letterSpacing:'0.1em'}},'SCALA'));
+  const chIcon=state.channel==='ghl'?'🟠 GHL':'📱 WA';
+  const sub=state.step===3?`${chIcon} ${state.instanceName} · ${state.messages.length.toLocaleString()} msgs · ${state.leaks.length} fugas`:state.step===1?(state.channel==='ghl'?'Go High Level':`${state.instances.length} instancias`):' Detección de fugas de venta';
+  info.append(el('div',{className:'fm',style:{fontSize:'11px',color:'var(--dim)'}},sub));
+  topLeft.append(info);topbar.append(topLeft);
+
+  if(state.step===3){
+    const tabs=el('div',{className:'tabs'});
+    [{id:'leaks',l:`🔍 Fugas (${state.leaks.length})`},{id:'chat',l:'💬 Chats'},{id:'ai',l:state.aiLoading?'⏳...':'🤖 IA'}].forEach(t=>{
+      const b=el('button',{className:`btn ${state.activeTab===t.id?'btn-p':''}`,style:{fontSize:'11px',padding:'6px 14px'},onClick:()=>{if(t.id==='ai'&&!state.aiAnalysis&&!state.aiLoading)runAI();else{state.activeTab=t.id;render();}}});
+      b.textContent=t.l;tabs.append(b);
+    });
+    const exp=el('button',{className:'btn btn-g',style:{fontSize:'11px',padding:'6px 14px'},onClick:exportReport});exp.textContent='⬇ Reporte';tabs.append(exp);
+    // Download chats dropdown
+    const dlWrap=el('div',{style:{position:'relative',display:'inline-block'}});
+    const dlBtn=el('button',{className:'btn btn-sec',style:{fontSize:'11px',padding:'6px 14px',color:'#000'},onClick:()=>{const menu=dlWrap.querySelector('.dl-menu');menu.style.display=menu.style.display==='block'?'none':'block';}});
+    dlBtn.textContent='📥 Descargar chats';
+    const dlMenu=el('div',{className:'dl-menu',style:{display:'none',position:'absolute',top:'100%',right:'0',marginTop:'4px',background:'var(--sf)',border:'1px solid var(--brd)',borderRadius:'6px',padding:'4px',zIndex:'100',minWidth:'160px',boxShadow:'0 8px 24px rgba(0,0,0,.4)'}});
+    [{label:'📄 CSV (Excel)',fmt:'csv'},{label:'📋 JSON (datos)',fmt:'json'},{label:'💬 TXT (legible)',fmt:'txt'}].forEach(({label,fmt})=>{
+      const item=el('button',{style:{display:'block',width:'100%',textAlign:'left',background:'transparent',border:'none',color:'var(--txt)',padding:'8px 12px',fontSize:'12px',cursor:'pointer',borderRadius:'4px',fontFamily:'Helvetica Neue,sans-serif'},onClick:()=>{exportChats(fmt);dlMenu.style.display='none';}});
+      item.textContent=label;
+      item.onmouseover=()=>{item.style.background='var(--sf2)'};
+      item.onmouseout=()=>{item.style.background='transparent'};
+      dlMenu.append(item);
+    });
+    dlWrap.append(dlBtn,dlMenu);tabs.append(dlWrap);
+    topbar.append(tabs);
+  }
+  app.append(topbar);
+
+  const main=el('div',{className:'main'});
+
+  // ── STEP 0: CONFIG ──
+  if(state.step===0){
+    main.innerHTML=`
+      <div style="text-align:center;margin-bottom:36px">
+        <h1 class="fd" style="font-size:36px;font-weight:800;margin-bottom:10px;letter-spacing:-0.02em">SCALA <span style="color:var(--acc)">LEAK DETECTOR</span></h1>
+        <div class="scala-line" style="width:60px;margin:0 auto 16px"></div>
+        <p style="color:var(--dim);font-size:14px;max-width:460px;margin:0 auto;line-height:1.7">Elegí el canal de comunicación, configurá las credenciales y analizá las conversaciones.</p>
+      </div>
+
+      <!-- Channel selector -->
+      <div class="channel-grid" id="channelGrid">
+        <div class="channel-card ${state.channel==='whatsapp'?'ch-active-wa':''}" id="chWA">
+          <div class="ch-icon">📱</div>
+          <div class="ch-label" style="color:${state.channel==='whatsapp'?'var(--evoG)':'var(--txt)'}">WhatsApp</div>
+          <div class="ch-desc">Via Evolution API</div>
+          ${state.channel==='whatsapp'?'<div class="ch-check" style="background:var(--evoG);color:#fff">✓</div>':''}
+          <div class="ch-badge" style="background:rgba(37,211,102,.08);color:var(--evoG)">EVOLUTION API</div>
+        </div>
+        <div class="channel-card ${state.channel==='ghl'?'ch-active-ghl':''}" id="chGHL">
+          <div class="ch-icon">🟠</div>
+          <div class="ch-label" style="color:${state.channel==='ghl'?'var(--ghl)':'var(--txt)'}">Go High Level</div>
+          <div class="ch-desc">CRM & Conversations API</div>
+          ${state.channel==='ghl'?'<div class="ch-check" style="background:var(--ghl);color:#fff">✓</div>':''}
+          <div class="ch-badge" style="background:rgba(255,106,0,.08);color:var(--ghl)">GHL API</div>
+        </div>
+      </div>
+
+      <!-- Config form (only show when channel selected) -->
+      <div id="configForm" style="display:${state.channel?'block':'none'}">
+        <!-- WhatsApp config -->
+        <div id="waConfig" style="display:${state.channel==='whatsapp'?'block':'none'}">
+          <div class="card" style="max-width:500px;margin:0 auto">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--brd)">
+              <span style="font-size:18px">📱</span>
+              <span class="fm" style="font-size:11px;font-weight:700;color:var(--evoG);letter-spacing:1px">WHATSAPP — EVOLUTION API</span>
+            </div>
+            <div style="margin-bottom:16px"><label class="label">URL de Evolution API</label><input id="inUrl" type="text" placeholder="https://evo.tudominio.com" /></div>
+            <div style="margin-bottom:16px"><label class="label">API Key Evolution</label><input id="inKey" type="password" placeholder="Tu global API key de Evolution" /></div>
+            <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKey" type="password" placeholder="sk-ant-..." /></div>
+            <button class="btn btn-green" id="btnConnect" style="width:100%">Conectar y ver instancias →</button>
+            <div style="margin-top:14px;font-size:11px;color:var(--dim)">🔒 Se guarda en tu navegador (localStorage) para no tipear cada vez.</div>
+          </div>
+        </div>
+        <!-- GHL config -->
+        <div id="ghlConfig" style="display:${state.channel==='ghl'?'block':'none'}">
+          <div class="card" style="max-width:500px;margin:0 auto">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--brd)">
+              <span style="font-size:18px">🟠</span>
+              <span class="fm" style="font-size:11px;font-weight:700;color:var(--ghl);letter-spacing:1px">GO HIGH LEVEL — API</span>
+            </div>
+            <div style="margin-bottom:16px"><label class="label">API Key (Bearer Token)</label><input id="inGhlKey" type="password" placeholder="Tu API key o Private Integration Token de GHL" /></div>
+            <div style="margin-bottom:16px"><label class="label">Location ID</label><input id="inGhlLocation" type="text" placeholder="Location ID de tu sub-cuenta GHL" /></div>
+            <div style="margin-bottom:6px;padding:10px;background:var(--ghlB);border:1px solid rgba(255,106,0,.15);border-radius:6px">
+              <span class="fm" style="font-size:10px;color:var(--ghl);font-weight:600">¿Dónde encuentro esto?</span>
+              <div style="font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6">
+                <b>API Key</b>: Settings → Integrations → API Key (o creá una Private Integration en Developer settings).<br>
+                <b>Location ID</b>: Settings → Business Info → Company (aparece en la URL como <code style="color:var(--ghl)">/location/xxxxx</code>).
+              </div>
+            </div>
+            <div style="margin-bottom:20px;padding-top:12px;border-top:1px solid var(--brd)"><label class="label">🤖 API Key Anthropic <span style="color:var(--dim);font-weight:400;text-transform:none">(opcional, para análisis IA)</span></label><input id="inAnthropicKeyGHL" type="password" placeholder="sk-ant-..." /></div>
+            <button class="btn btn-ghl" id="btnConnectGHL" style="width:100%">Conectar con Go High Level →</button>
+            <div style="margin-top:14px;font-size:11px;color:var(--dim)">🔒 Se guarda en tu navegador (localStorage) para no tipear cada vez.</div>
+          </div>
+        </div>
+      </div>
+
+      ${!state.channel?'<div style="text-align:center;padding:20px"><p style="color:var(--dim);font-size:13px">👆 Seleccioná un canal para empezar</p></div>':''}
+
+      <div style="max-width:500px;margin:20px auto 0;text-align:center">
+        <div class="scala-line" style="width:40px;margin:0 auto 16px"></div>
+        <p style="color:var(--dim);font-size:13px;margin-bottom:12px">¿Ya tenés chats exportados de un análisis anterior?</p>
+        <label style="display:inline-flex;align-items:center;gap:8px;background:var(--sf);border:1px solid var(--brd);padding:10px 24px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--txt);transition:all .15s">
+          📂 Cargar chats exportados (.json, .csv, .txt)
+          <input type="file" accept=".json,.csv,.txt" id="importFile" style="display:none" />
+        </label>
+      </div>`;
+    
+    // Channel selection handlers
+    const chWA=$('#chWA',main); const chGHL=$('#chGHL',main);
+    if(chWA) chWA.onclick=()=>{state.channel='whatsapp';localStorage.setItem('channel','whatsapp');render();};
+    if(chGHL) chGHL.onclick=()=>{state.channel='ghl';localStorage.setItem('channel','ghl');render();};
+
+    // WhatsApp config handlers
+    if(state.channel==='whatsapp'){
+      const inUrl=$('#inUrl',main); if(inUrl){inUrl.value=state.evoUrl;inUrl.oninput=e=>{state.evoUrl=e.target.value;};}
+      const inKey=$('#inKey',main); if(inKey){inKey.value=state.evoKey;inKey.oninput=e=>{state.evoKey=e.target.value;};}
+      const inAnthropic=$('#inAnthropicKey',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
+      const btnC=$('#btnConnect',main); if(btnC) btnC.onclick=()=>{if(state.evoUrl&&state.evoKey)fetchInstances();};
+    }
+
+    // GHL config handlers
+    if(state.channel==='ghl'){
+      const inGK=$('#inGhlKey',main); if(inGK){inGK.value=state.ghlKey;inGK.oninput=e=>{state.ghlKey=e.target.value;};}
+      const inGL=$('#inGhlLocation',main); if(inGL){inGL.value=state.ghlLocationId;inGL.oninput=e=>{state.ghlLocationId=e.target.value;};}
+      const inAnthropic=$('#inAnthropicKeyGHL',main); if(inAnthropic){inAnthropic.value=state.anthropicKey;inAnthropic.oninput=e=>{state.anthropicKey=e.target.value;localStorage.setItem('anthropicKey',e.target.value);};}
+      const btnG=$('#btnConnectGHL',main); if(btnG) btnG.onclick=()=>{if(state.ghlKey&&state.ghlLocationId)fetchGHLConversations();};
+    }
+
+    const importInput=$('#importFile',main);
+    if(importInput)importInput.onchange=e=>{const f=e.target.files?.[0];if(f)importChats(f);};
+    if(state.loading)main.append(spinner('Conectando...'));
+    if(state.error)main.append(errorBox(state.error));
+  }
+
+  // ── STEP 1: INSTANCES ──
+  else if(state.step===1){
+    main.append(el('h2',{className:'fd',style:{fontSize:'24px',fontWeight:400,marginBottom:'8px'}},'Elegí una instancia'));
+    main.append(el('p',{style:{color:'var(--dim)',fontSize:'13px',marginBottom:'20px'}},'Seleccioná la instancia del cliente que querés analizar.'));
+
+    if(state.instances.length>0){
+      const grid=el('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'12px',marginBottom:'20px'}});
+      state.instances.forEach(inst=>{
+        const data=inst.instance||inst;
+        const isConn=data.connectionStatus==='open'||data.status==='open';
+        const card=el('div',{className:`inst-card ${isConn?'connected':''}`,onClick:()=>selectInstance(inst)});
+        card.append(el('div',{className:`dot ${isConn?'dot-on':'dot-off'}`}));
+        card.append(el('div',{style:{fontSize:'15px',fontWeight:700,marginBottom:'4px'}},data.instanceName||data.name||'Sin nombre'));
+        if(data.ownerJid||data.number)card.append(el('div',{className:'fm',style:{fontSize:'12px',color:'var(--dim)',marginBottom:'8px'}},`📱 ${data.ownerJid||data.number||''}`));
+        if(data.profileName)card.append(el('div',{style:{fontSize:'12px',color:'var(--dim)',marginBottom:'8px'}},data.profileName));
+        const badge=el('span',{className:'fm',style:{fontSize:'10px',fontWeight:700,padding:'3px 8px',borderRadius:'4px',textTransform:'uppercase',background:isConn?'var(--goodB)':'var(--accB)',color:isConn?'var(--good)':'var(--acc)'}});
+        badge.textContent=isConn?'Conectado':'Desconectado';
+        card.append(badge);
+        grid.append(card);
+      });
+      main.append(grid);
+    }else{
+      main.append(el('div',{className:'card',style:{textAlign:'center',padding:'40px'},innerHTML:'<p style="color:var(--dim)">No hay instancias. Creá una nueva.</p>'}));
+    }
+
+    // New instance
+    if(!state.showNewInstance){
+      const nb=el('div',{style:{textAlign:'center',marginTop:'8px'}});
+      const btn=el('button',{className:'btn btn-g',style:{fontSize:'12px'},onClick:()=>{state.showNewInstance=true;render();}});
+      btn.textContent='+ Crear nueva instancia';nb.append(btn);main.append(nb);
+    }else{
+      const box=el('div',{className:'card',style:{maxWidth:'460px',margin:'16px auto 0',textAlign:'center'}});
+      box.append(el('h3',{className:'fd',style:{fontSize:'18px',marginBottom:'12px'}},'Vincular nuevo WhatsApp'));
+      box.append(el('p',{style:{color:'var(--dim)',fontSize:'12px',marginBottom:'16px',lineHeight:'1.6'}},'El cliente escanea el QR desde WhatsApp → Dispositivos vinculados.'));
+      if(state.connectionStatus==='idle'){const b=el('button',{className:'btn btn-green',onClick:createInstance});b.textContent='Generar QR';box.append(b);}
+      if(state.connectionStatus==='creating')box.append(spinner('Creando...'));
+      if(state.connectionStatus==='qr'&&state.qrCode){
+        const wrap=el('div',{style:{background:'#fff',borderRadius:'12px',padding:'12px',display:'inline-block',marginBottom:'12px'}});
+        const img=el('img',{src:state.qrCode.startsWith('data:')?state.qrCode:`data:image/png;base64,${state.qrCode}`,style:{width:'220px',height:'220px'}});
+        wrap.append(img);box.append(wrap);
+        const wait=el('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}});
+        wait.append(el('div',{style:{width:'8px',height:'8px',borderRadius:'50%',background:'var(--warn)',animation:'pulse 1.5s infinite'}}));
+        wait.append(el('span',{className:'fm',style:{fontSize:'11px',color:'var(--warn)'}},'Esperando escaneo...'));
+        box.append(wait);
+      }
+      if(state.connectionStatus==='connected')box.append(el('div',{style:{padding:'16px',background:'var(--goodB)',borderRadius:'8px'},innerHTML:'<span style="color:var(--good);font-weight:600">✅ ¡Conectado!</span>'}));
+      if(state.connectionStatus==='error'&&state.error)box.append(errorBox(state.error));
+      main.append(box);
+    }
+  }
+
+  // ── STEP 2: EXTRACT ──
+  else if(state.step===2){
+    const isGHL=state.channel==='ghl';
+    const wrap=el('div',{style:{textAlign:'center',maxWidth:'500px',margin:'0 auto'}});
+    const info=el('div',{className:'card',style:{marginBottom:'24px',display:'flex',alignItems:'center',gap:'14px',justifyContent:'center',borderColor:isGHL?'rgba(255,106,0,.2)':'rgba(37,211,102,.2)'}});
+    info.append(el('div',{style:{width:'12px',height:'12px',borderRadius:'50%',background:isGHL?'var(--ghl)':'var(--evoG)',boxShadow:isGHL?'0 0 10px rgba(255,106,0,.4)':'0 0 10px rgba(37,211,102,.4)'}}));
+    const idata=el('div',{style:{textAlign:'left'}});
+    idata.append(el('div',{style:{fontSize:'15px',fontWeight:700}},state.instanceName));
+    idata.append(el('div',{className:'fm',style:{fontSize:'11px',color:'var(--dim)'}},isGHL?'Go High Level · Lista para extraer':'WhatsApp · Lista para extraer'));
+    info.append(idata);wrap.append(info);
+    wrap.append(el('h2',{className:'fd',style:{fontSize:'24px',fontWeight:800,marginBottom:'10px',letterSpacing:'-0.02em'}},'Extraer conversaciones'));
+    wrap.append(el('p',{style:{color:'var(--dim)',fontSize:'13px',marginBottom:'28px',lineHeight:'1.6'}},isGHL?'Se descargan todas las conversaciones de GHL para analizarlas.':'Se descargan todos los chats y mensajes para analizarlos.'));
+    if(!state.loading){const b=el('button',{className:`btn ${isGHL?'btn-ghl':'btn-p'}`,style:{fontSize:'14px',padding:'12px 32px'},onClick:isGHL?extractGHLMessages:extractMessages});b.textContent='🚀 Extraer todos los chats';wrap.append(b);}
+    else{const pw=el('div',{style:{textAlign:'center',padding:'20px'}});pw.append(el('div',{className:'spinner'}));pw.append(el('p',{style:{color:'var(--txt)',fontSize:'13px'}},state.loadingMsg||'Extrayendo...'));wrap.append(pw);}
+    if(state.error){wrap.append(errorBox(state.error));const rb=el('button',{className:`btn ${isGHL?'btn-ghl':'btn-p'}`,style:{fontSize:'11px',marginTop:'8px'},onClick:isGHL?extractGHLMessages:extractMessages});rb.textContent='Reintentar';wrap.append(rb);}
+    main.append(wrap);
+  }
+
+  // ── STEP 3: DASHBOARD ──
+  else if(state.step===3){
+    const bySev={high:state.leaks.filter(l=>l.severity==='high'),medium:state.leaks.filter(l=>l.severity==='medium'),low:state.leaks.filter(l=>l.severity==='low')};
+
+    if(state.activeTab==='leaks'){
+      // ═══ SALES DASHBOARD ═══
+      const dashboard=el('div',{className:'scala-bg',style:{marginBottom:'24px'}});
+      
+      // Calculate metrics
+      const groups={};
+      state.messages.forEach(m=>{const k=m.chatId||'x';if(!groups[k])groups[k]=[];groups[k].push(m);});
+      const allChatsArr=Object.values(groups);
+      const commercialChats=allChatsArr.filter(ms=>isCommercialChat(ms));
+      const totalCommercial=commercialChats.length;
+      
+      // 1. Avg response time
+      let totalResponseTime=0,responseCount=0;
+      commercialChats.forEach(ms=>{
+        for(let i=0;i<ms.length-1;i++){
+          if(!ms[i].fromMe){
+            const nv=ms.slice(i+1).find(m=>m.fromMe);
+            if(nv){const d=timeDiffHours(ms[i],nv);if(d<168){totalResponseTime+=d;responseCount++;}}
+          }
+        }
+      });
+      const avgResponseHrs=responseCount>0?totalResponseTime/responseCount:0;
+      const avgResponseStr=avgResponseHrs<1?`${Math.round(avgResponseHrs*60)} min`:avgResponseHrs<24?`${avgResponseHrs.toFixed(1)} hrs`:`${(avgResponseHrs/24).toFixed(1)} días`;
+      const responseColor=avgResponseHrs<=2?'var(--good)':avgResponseHrs<=8?'var(--warn)':'var(--acc)';
+      
+      // 2. Avg follow-ups per commercial chat
+      let totalFollowups=0;
+      commercialChats.forEach(ms=>{
+        const vendorMsgs=ms.filter(m=>m.fromMe);
+        const followups=vendorMsgs.filter(m=>has(m.text,FOLLOWUP_WORDS));
+        totalFollowups+=followups.length;
+      });
+      const avgFollowups=totalCommercial>0?(totalFollowups/totalCommercial).toFixed(1):'0';
+      const followupColor=parseFloat(avgFollowups)>=2?'var(--good)':parseFloat(avgFollowups)>=1?'var(--warn)':'var(--acc)';
+      
+      // 3. Sales conversion rate
+      let closedSales=0;
+      commercialChats.forEach(ms=>{
+        const allText=ms.map(m=>(m.text||'').toLowerCase()).join(' ');
+        if(has(allText,CLOSE_ATTEMPT)&&has(allText,["listo","perfecto","dale","confirmado","pagado","transferí","transferi","hecho","ya pagué","ya pague","enviado","reservado"]))closedSales++;
+      });
+      const conversionRate=totalCommercial>0?((closedSales/totalCommercial)*100).toFixed(1):'0';
+      const convColor=parseFloat(conversionRate)>=30?'var(--good)':parseFloat(conversionRate)>=15?'var(--warn)':'var(--acc)';
+      
+      // 4. Recoverable sales (objections that could have been handled better)
+      const recoverableLeaks=state.leaks.filter(l=>['obj_accepted','obj_ignored','post_offer_obj','price_bad','offer_dead','offer_no_fu'].includes(l.id));
+      const recoverableChats=new Set(recoverableLeaks.map(l=>l.chatId)).size;
+      
+      // 5. Overall score
+      let score=100;
+      if(avgResponseHrs>8)score-=15;else if(avgResponseHrs>4)score-=8;
+      if(parseFloat(avgFollowups)<1)score-=20;else if(parseFloat(avgFollowups)<2)score-=10;
+      if(parseFloat(conversionRate)<15)score-=15;else if(parseFloat(conversionRate)<30)score-=8;
+      score-=Math.min(40,bySev.high.length*5);
+      score-=Math.min(15,bySev.medium.length*3);
+      score=Math.max(0,Math.min(100,Math.round(score)));
+      const scoreColor=score>=70?'var(--good)':score>=40?'var(--warn)':'var(--acc)';
+      const scoreLabel=score>=70?'Bueno':score>=40?'Mejorable':'Crítico';
+      
+      // Render dashboard
+      dashboard.innerHTML=`
+        <div style="background:var(--sf);border:1px solid var(--brd);border-radius:12px;padding:24px;margin-bottom:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+            <div>
+              <h2 class="fd" style="font-size:22px;font-weight:800;margin:0;letter-spacing:-0.02em">Dashboard de Ventas</h2>
+              <div class="scala-line" style="width:40px;margin:6px 0 4px"></div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span class="fm" style="font-size:11px;color:var(--dim)">${totalCommercial} conversaciones comerciales de ${allChatsArr.length} chats totales</span>
+                <span class="fm" style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;background:${state.channel==='ghl'?'rgba(255,106,0,.12)':'rgba(37,211,102,.12)'};color:${state.channel==='ghl'?'var(--ghl)':'var(--evoG)'}">${state.channel==='ghl'?'🟠 GHL':'📱 WHATSAPP'}</span>
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div style="position:relative;display:inline-block">
+                <svg viewBox="0 0 80 80" width="80" height="80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="var(--sf3)" stroke-width="5"/>
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="${scoreColor}" stroke-width="5" stroke-dasharray="${(score/100)*213.6} 213.6" stroke-linecap="round" transform="rotate(-90 40 40)" style="transition:stroke-dasharray 1s"/>
+                </svg>
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">
+                  <div class="fd" style="font-size:22px;font-weight:700;color:${scoreColor}">${score}</div>
+                </div>
+              </div>
+              <div class="fm" style="font-size:10px;color:${scoreColor};font-weight:600;margin-top:4px">${scoreLabel}</div>
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+            <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${responseColor}">
+              <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⏱ Tiempo respuesta promedio</div>
+              <div class="fd" style="font-size:24px;color:${responseColor};font-weight:700">${avgResponseStr}</div>
+              <div style="font-size:10px;color:var(--dim);margin-top:4px">${avgResponseHrs<=2?'Excelente':'Ideal: < 2 horas'}</div>
+            </div>
+            
+            <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${followupColor}">
+              <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔄 Seguimientos promedio</div>
+              <div class="fd" style="font-size:24px;color:${followupColor};font-weight:700">${avgFollowups}</div>
+              <div style="font-size:10px;color:var(--dim);margin-top:4px">por conversación comercial</div>
+            </div>
+            
+            <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid ${convColor}">
+              <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📊 Tasa de cierre</div>
+              <div class="fd" style="font-size:24px;color:${convColor};font-weight:700">${conversionRate}%</div>
+              <div style="font-size:10px;color:var(--dim);margin-top:4px">${closedSales} de ${totalCommercial} conversaciones</div>
+            </div>
+            
+            <div style="background:var(--sf2);border-radius:8px;padding:14px;border-left:3px solid var(--danger)">
+              <div class="fm" style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">💰 Ventas recuperables</div>
+              <div class="fd" style="font-size:24px;color:var(--danger);font-weight:700">${recoverableChats}</div>
+              <div style="font-size:10px;color:var(--dim);margin-top:4px">con mejor manejo de objeciones</div>
+            </div>
+          </div>
+        </div>
+      `;
+      main.append(dashboard);
+      
+      // Fugas summary strip
+      const kpiGrid=el('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:'8px',marginBottom:'20px'}});
+      [{l:'Fugas críticas',v:bySev.high.length,c:'var(--danger)',b:'var(--dangerB)'},{l:'Fugas medias',v:bySev.medium.length,c:'var(--warn)',b:'var(--warnB)'},{l:'Chats comerciales',v:totalCommercial,c:'var(--acc)',b:'var(--accB)'},{l:'Total mensajes',v:state.messages.length,c:'var(--sec)',b:'var(--secB)'}].forEach(k=>{
+        const d=el('div',{className:'kpi',style:{background:k.b,border:`1px solid ${k.c}15`,padding:'12px'}});
+        d.append(el('div',{className:'kpi-v',style:{color:k.c,fontSize:'22px'}},k.v.toLocaleString()));
+        d.append(el('div',{className:'kpi-l',style:{color:k.c}},k.l));
+        kpiGrid.append(d);
+      });
+      main.append(kpiGrid);
+
+      if(state.leaks.length===0){
+        main.append(el('div',{style:{textAlign:'center',padding:'48px',background:'var(--goodB)',borderRadius:'10px'},innerHTML:'<div style="font-size:40px;margin-bottom:10px">✅</div><h3 class="fd" style="font-size:20px;color:var(--good);margin-bottom:8px">Sin fugas detectadas</h3><p style="color:var(--dim);font-size:13px">Probá el análisis IA para un diagnóstico más profundo.</p>'}));
+      }else{
+        [{sev:'high',items:bySev.high,label:'🔴 Críticas',color:'var(--danger)'},{sev:'medium',items:bySev.medium,label:'🟡 Medias',color:'var(--warn)'},{sev:'low',items:bySev.low,label:'🟢 Info',color:'var(--sec)'}].forEach(({items,label,color})=>{
+          if(items.length>0){
+            main.append(el('div',{className:'section-title',style:{color,borderBottom:`2px solid ${color}20`}},`${label} (${items.length})`));
+            items.forEach(l=>{const d=el('div');renderLeakCard(d,l,true);main.append(d);});
+          }
+        });
+      }
+    }
+
+    else if(state.activeTab==='chat'){
+      const controls=el('div',{style:{display:'flex',gap:'8px',marginBottom:'14px',flexWrap:'wrap'}});
+      const searchIn=el('input',{type:'text',placeholder:'Buscar...',style:{flex:'1',minWidth:'180px'}});
+      searchIn.value=state.search;
+      searchIn.oninput=e=>{state.search=e.target.value;state.visibleCount=100;render();};
+      const chatSel=el('select');
+      const allChats=getChats();
+      chatSel.append(el('option',{value:'all'},`Todos (${allChats.length})`));
+      allChats.slice(0,40).forEach(c=>{chatSel.append(el('option',{value:c.id},`${c.name} (${c.count})`));});
+      chatSel.value=state.chatFilter;
+      chatSel.onchange=e=>{state.chatFilter=e.target.value;state.visibleCount=100;render();};
+      controls.append(searchIn,chatSel);main.append(controls);
+
+      const filt=getFiltered();
+      main.append(el('div',{className:'fm',style:{fontSize:'11px',color:'var(--dim)',marginBottom:'10px'}},`${filt.length.toLocaleString()} mensajes`));
+      const chatBox=el('div',{className:'card',style:{maxHeight:'60vh',overflowY:'auto',padding:'14px'}});
+      filt.slice(0,state.visibleCount).forEach(m=>{
+        const row=el('div',{style:{display:'flex',justifyContent:m.fromMe?'flex-end':'flex-start',padding:'2px 0'}});
+        const bub=el('div',{className:`bubble ${m.fromMe?'bubble-me':'bubble-them'}`});
+        if(!m.fromMe)bub.append(el('div',{style:{fontSize:'10px',fontWeight:700,color:'var(--info)',marginBottom:'2px'},className:'fm'},m.sender));
+        bub.append(el('div',{},m.text));
+        bub.append(el('div',{className:'fm',style:{fontSize:'9px',color:'var(--dim)',textAlign:'right',marginTop:'2px'}},`${m.date} ${m.time}`));
+        row.append(bub);chatBox.append(row);
+      });
+      if(state.visibleCount<filt.length){const mb=el('button',{className:'btn btn-g',style:{display:'block',margin:'10px auto 0',fontSize:'11px'},onClick:()=>{state.visibleCount+=200;render();}});mb.textContent=`Cargar más (${(filt.length-state.visibleCount).toLocaleString()})`;chatBox.append(mb);}
+      main.append(chatBox);
+    }
+
+    else if(state.activeTab==='ai'){
+      if(state.aiLoading)main.append(spinner('Claude está analizando...'));
+      else if(state.aiError)main.append(errorBox(state.aiError));
+      else if(state.aiAnalysis){
+        const a=state.aiAnalysis;
+        // Score + summary
+        const top=el('div',{style:{display:'grid',gridTemplateColumns:'160px 1fr',gap:'16px',marginBottom:'20px'}});
+        const scoreBox=el('div',{className:'card',style:{display:'flex',alignItems:'center',justifyContent:'center'}});
+        const c=a.score>=70?'var(--good)':a.score>=40?'var(--warn)':'var(--acc)';
+        scoreBox.innerHTML=`<div style="text-align:center"><svg viewBox="0 0 100 100" width="100" height="100"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--sf3)" stroke-width="6"/><circle cx="50" cy="50" r="42" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${(a.score/100)*264} 264" stroke-linecap="round" transform="rotate(-90 50 50)"/></svg><div style="position:relative;top:-62px;font-size:26px;font-weight:700;color:${c}" class="fd">${a.score}</div><div style="font-size:11px;font-weight:600;color:${c};margin-top:-40px">${a.score>=70?'Bueno':a.score>=40?'Regular':'Crítico'}</div></div>`;
+        const sumBox=el('div',{className:'card'});
+        sumBox.append(el('h3',{className:'fd',style:{marginBottom:'8px',fontSize:'16px'}},'Resumen ejecutivo'));
+        sumBox.append(el('p',{style:{color:'var(--dim)',fontSize:'13px',lineHeight:'1.7'}},a.resumen));
+        top.append(scoreBox,sumBox);main.append(top);
+        // Strengths + improvements
+        const cols=el('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'20px'}});
+        const strBox=el('div',{style:{background:'var(--goodB)',border:'1px solid rgba(34,197,94,.1)',borderRadius:'10px',padding:'16px'}});
+        strBox.append(el('h4',{className:'fm',style:{marginBottom:'10px',fontSize:'11px',color:'var(--good)',fontWeight:700,textTransform:'uppercase'}},'✅ Fortalezas'));
+        (a.fortalezas||[]).forEach(f=>strBox.append(el('div',{style:{fontSize:'12px',padding:'4px 0',lineHeight:'1.5'}},f)));
+        const impBox=el('div',{style:{background:'var(--accB)',border:'1px solid rgba(255,77,53,.1)',borderRadius:'10px',padding:'16px'}});
+        impBox.append(el('h4',{className:'fm',style:{marginBottom:'10px',fontSize:'11px',color:'var(--acc)',fontWeight:700,textTransform:'uppercase'}},'🔧 Mejoras'));
+        (a.mejoras||[]).forEach(m=>impBox.append(el('div',{style:{fontSize:'12px',padding:'4px 0',lineHeight:'1.5'}},m)));
+        cols.append(strBox,impBox);main.append(cols);
+        // AI leaks
+        if(a.fugas?.length>0){
+          main.append(el('div',{className:'section-title',style:{color:'var(--txt)',borderBottom:'2px solid var(--brd)'}},`🤖 Fugas IA (${a.fugas.length})`));
+          a.fugas.forEach(f=>{const d=el('div');renderLeakCard(d,{label:(f.tipo||'').replace(/_/g,' '),desc:f.descripcion,severity:f.severidad==='alta'?'high':f.severidad==='media'?'medium':'low',context:f.fragmento,recomendacion:f.recomendacion,icon:f.severidad==='alta'?'🔴':f.severidad==='media'?'🟡':'🟢'});main.append(d);});
+        }
+      }else{
+        const aiEmpty=el('div',{style:{textAlign:'center',padding:'48px'}});
+        aiEmpty.append(el('div',{style:{fontSize:'40px',marginBottom:'12px'}},'🤖'));
+        aiEmpty.append(el('h3',{className:'fd',style:{fontSize:'20px',marginBottom:'12px'}},'Análisis con IA'));
+        aiEmpty.append(el('p',{style:{color:'var(--dim)',fontSize:'13px',marginBottom:'8px',lineHeight:'1.6'}},'Claude analiza las conversaciones comerciales en profundidad: detecta objeciones mal manejadas, oportunidades de cierre perdidas, y da recomendaciones con frases concretas.'));
+        if(!state.anthropicKey){
+          aiEmpty.append(el('div',{style:{background:'var(--accB)',border:'1px solid rgba(24,93,232,.2)',borderRadius:'6px',padding:'14px',marginBottom:'16px',maxWidth:'400px',marginLeft:'auto',marginRight:'auto'},innerHTML:'<span class="fm" style="font-size:11px;color:var(--acc)">⚠️ Necesitás una API key de Anthropic para usar esta función.</span><br><span style="font-size:11px;color:var(--dim);line-height:1.6">Conseguila en <b>console.anthropic.com</b> → API Keys. Después volvé a Configurar (←) y pegala en el campo "API Key Anthropic".</span>'}));
+          const goBack=el('button',{className:'btn btn-p',onClick:()=>{state.step=0;render();}});goBack.textContent='← Ir a Configurar';aiEmpty.append(goBack);
+        }else{
+          aiEmpty.append(el('p',{style:{color:'var(--sec)',fontSize:'12px',marginBottom:'16px'}},'✅ API key configurada'));
+          const b=el('button',{className:'btn btn-p',style:{fontSize:'14px',padding:'10px 28px'},onClick:runAI});b.textContent='🤖 Ejecutar análisis IA';aiEmpty.append(b);
+          aiEmpty.append(el('p',{style:{color:'var(--dim)',fontSize:'10px',marginTop:'10px'}},'Usa créditos de tu cuenta de Anthropic (~$0.01-0.03 por análisis)'));
+        }
+        main.append(aiEmpty);
+      }
+    }
+  }
+
+  app.append(main);
+}
+
+// Helpers
+function getChats(){
+  const m={};state.messages.forEach(msg=>{if(msg.fromMe)return;const k=msg.chatId||msg.sender;if(!m[k])m[k]={id:k,name:msg.chatName||msg.sender,count:0};m[k].count++;});
+  return Object.values(m).sort((a,b)=>b.count-a.count);
+}
+function getFiltered(){
+  return state.messages.filter(m=>(state.chatFilter==='all'||m.chatId===state.chatFilter)&&(!state.search||(m.text||'').toLowerCase().includes(state.search.toLowerCase())));
+}
+function spinner(msg){const d=el('div',{style:{textAlign:'center',padding:'40px'}});d.append(el('div',{className:'spinner'}));d.append(el('p',{style:{color:'var(--dim)',fontSize:'13px'}},msg||'Cargando...'));return d;}
+function errorBox(msg){const d=el('div',{className:'error'});d.append(el('span',{},`⚠️ ${msg}`));return d;}
+function renderLeakCard(container,leak,withViewBtn=false){
+  const bc=leak.severity==='high'?'var(--danger)':leak.severity==='medium'?'var(--warn)':'var(--sec)';
+  const card=el('div',{className:'leak',style:{borderLeft:`3px solid ${bc}`}});
+  const top=el('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'8px',flexWrap:'wrap',marginBottom:'8px'}});
+  const left=el('div',{style:{display:'flex',alignItems:'center',gap:'8px'}});
+  left.append(el('span',{style:{fontSize:'14px'}},leak.icon||'⚠️'));
+  left.append(el('span',{style:{fontSize:'13px',fontWeight:700}},leak.label||leak.tipo||''));
+  const sevC=leak.severity==='high'?'var(--danger)':leak.severity==='medium'?'var(--warn)':'var(--sec)';
+  const sevL=leak.severity==='high'?'ALTA':leak.severity==='medium'?'MEDIA':'BAJA';
+  const badge=el('span',{className:'sev',style:{background:sevC+'18',color:sevC}},sevL);
+  left.append(badge);top.append(left);
+  if(leak.chatName){const cn=el('span',{className:'fm',style:{fontSize:'11px',color:'var(--acc)',background:'var(--accB)',padding:'2px 8px',borderRadius:'3px'}},leak.chatName);top.append(cn);}
+  card.append(top);
+  card.append(el('p',{style:{margin:'0 0 8px',fontSize:'12px',color:'var(--dimL)',lineHeight:'1.6'}},leak.desc||leak.descripcion||''));
+  if(leak.context||leak.fragmento)card.append(el('div',{style:{background:'var(--sf2)',borderRadius:'3px',padding:'8px 12px',fontSize:'11px',lineHeight:'1.5',marginBottom:'8px',borderLeft:'2px solid var(--acc)'},className:'fm'},leak.context||leak.fragmento));
+  if(leak.recomendacion)card.append(el('div',{style:{fontSize:'11px',color:'var(--sec)',lineHeight:'1.5'}},`💡 ${leak.recomendacion}`));
+  if(withViewBtn&&leak.messages){const vb=el('button',{className:'btn btn-g',style:{marginTop:'8px',fontSize:'11px',padding:'4px 12px'},onClick:()=>{state.viewingLeak=leak;render();}});vb.textContent='Ver chat →';card.append(vb);}
+  container.append(card);
+}
+
+// Init
+render();
+</script>
+</body>
+</html>
